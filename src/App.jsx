@@ -617,7 +617,7 @@ function LoginScreen({ primeiroAcesso }) {
 }
 
 // ─────────────────────────────────────────────
-// GERENCIAR USUÁRIOS — cards mobile-friendly + botão excluir
+// GERENCIAR USUÁRIOS
 // ─────────────────────────────────────────────
 function GerenciarUsuarios({ usuarioAtual }) {
   const [usuarios, setUsuarios] = useState([]);
@@ -772,7 +772,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
 }
 
 // ─────────────────────────────────────────────
-// RELATÓRIO PDF — gerado via HTML/CSS e print
+// RELATÓRIO PDF
 // ─────────────────────────────────────────────
 function RelatorioPDF({ dados }) {
   const transacoes = dados.transacoes || [];
@@ -920,7 +920,6 @@ ${produtos.length === 0 ? "<p style='color:#aaa;padding:8px 0'>Nenhum produto ca
         </button>
       </div>
 
-      {/* Seletor de mês */}
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-body">
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
@@ -946,7 +945,6 @@ ${produtos.length === 0 ? "<p style='color:#aaa;padding:8px 0'>Nenhum produto ca
         </div>
       </div>
 
-      {/* Preview das transações do mês */}
       <div className="card">
         <div className="card-header" style={{ padding: "18px 20px 14px" }}>
           <span className="card-title">Transações do período ({transacoesFiltradas.length})</span>
@@ -1037,13 +1035,13 @@ function Dashboard({ dados }) {
 }
 
 // ─────────────────────────────────────────────
-// FORM TRANSAÇÃO
+// FORM TRANSAÇÃO — CORRIGIDO
 // ─────────────────────────────────────────────
 function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
   const [form, setForm] = useState({
     descricao: "", valor: "", categoria: "", cliente: "",
     data: new Date().toISOString().split("T")[0],
-    observacoes: "", produtoId: "", quantidade: 1,
+    observacoes: "", produtoId: "", quantidade: "1", // ← CORREÇÃO: string em vez de número
   });
 
   const categorias = (dados.categorias || []).filter(c => tipo === "venda" ? c.tipo === "receita" : c.tipo === "despesa");
@@ -1052,7 +1050,7 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
 
   const valorVenda = parseFloat(form.valor) || 0;
   const custoUnitario = produtoSelecionado ? produtoSelecionado.precoCompra : 0;
-  const custoTotal = custoUnitario * form.quantidade;
+  const custoTotal = custoUnitario * (parseInt(form.quantidade) || 1);
   const lucro = valorVenda - custoTotal;
   const margem = custoTotal > 0 ? (lucro / custoTotal * 100) : 0;
 
@@ -1062,16 +1060,25 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     set("produtoId", id);
     if (id) {
       const p = produtos.find(x => x.id === id);
-      if (p) { set("descricao", p.nome); set("valor", (p.precoVenda * form.quantidade).toFixed(2)); }
+      if (p) {
+        set("descricao", p.nome);
+        set("valor", (p.precoVenda * (parseInt(form.quantidade) || 1)).toFixed(2));
+      }
     }
   }
 
+  // ← CORREÇÃO: handleQtd agora salva como string e avisa em tempo real se exceder estoque
   function handleQtd(q) {
-    const n = Math.max(1, parseInt(q) || 1);
-    set("quantidade", n);
+    set("quantidade", q); // mantém o valor digitado como string para não travar o input
+    const n = parseInt(q) || 1;
     if (form.produtoId) {
       const p = produtos.find(x => x.id === form.produtoId);
-      if (p) set("valor", (p.precoVenda * n).toFixed(2));
+      if (p) {
+        set("valor", (p.precoVenda * n).toFixed(2));
+        if (n > p.quantidadeEstoque) {
+          toast(`⚠️ Quantidade maior que o estoque! Disponível: ${p.quantidadeEstoque}`, "error");
+        }
+      }
     }
   }
 
@@ -1079,9 +1086,10 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     e.preventDefault();
     if (!form.descricao.trim()) return toast("Preencha a descrição", "error");
     if (!form.valor || parseFloat(form.valor) <= 0) return toast("Valor inválido", "error");
+    const qtd = parseInt(form.quantidade) || 1;
     if (tipo === "venda" && form.produtoId) {
       const prod = produtos.find(p => p.id === form.produtoId);
-      if (!prod || prod.quantidadeEstoque < form.quantidade) return toast("Estoque insuficiente!", "error");
+      if (!prod || prod.quantidadeEstoque < qtd) return toast("Estoque insuficiente!", "error");
     }
     const payload = {
       tipo,
@@ -1091,9 +1099,8 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
       cliente: form.cliente || "",
       data: form.data || new Date().toISOString().split("T")[0],
       observacoes: form.observacoes || "",
-      quantidade: form.quantidade || 1
+      quantidade: qtd, // ← CORREÇÃO: converte para número só no momento de salvar
     };
-    // Só inclui produtoId se for string válida e não vazia
     if (form.produtoId && typeof form.produtoId === "string" && form.produtoId.trim() !== "") {
       payload.produtoId = form.produtoId;
     }
@@ -1117,8 +1124,32 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
                 </select>
               </div>
               <div className="input-group">
-                <label className="input-label">Quantidade</label>
-                <input className="input" type="number" min="1" value={form.quantidade} onChange={e => handleQtd(e.target.value)} />
+                <label className="input-label">
+                  Quantidade
+                  {produtoSelecionado && (
+                    <span style={{ color: "var(--text2)", fontWeight: 400, marginLeft: 6 }}>
+                      (máx: {produtoSelecionado.quantidadeEstoque})
+                    </span>
+                  )}
+                </label>
+                <input
+                  className="input"
+                  type="number"
+                  min="1"
+                  max={produtoSelecionado ? produtoSelecionado.quantidadeEstoque : undefined}
+                  value={form.quantidade}
+                  onChange={e => handleQtd(e.target.value)}
+                  style={
+                    produtoSelecionado && parseInt(form.quantidade) > produtoSelecionado.quantidadeEstoque
+                      ? { borderColor: "var(--red)" }
+                      : {}
+                  }
+                />
+                {produtoSelecionado && parseInt(form.quantidade) > produtoSelecionado.quantidadeEstoque && (
+                  <span style={{ fontSize: 11, color: "var(--red)", marginTop: 2 }}>
+                    ⚠️ Excede o estoque disponível ({produtoSelecionado.quantidadeEstoque} un.)
+                  </span>
+                )}
               </div>
             </div>
             {produtoSelecionado && valorVenda > 0 && (
@@ -1436,7 +1467,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar }) {
 }
 
 // ─────────────────────────────────────────────
-// CLIENTES — com edição adicionada
+// CLIENTES
 // ─────────────────────────────────────────────
 function Clientes({ dados, onAdicionar, onRemover, onAtualizar }) {
   const [modal, setModal] = useState(false);
