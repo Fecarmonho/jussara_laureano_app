@@ -265,14 +265,33 @@ const CSS = `
   .variante-item-estoque { font-size: 12px; color: var(--text2); }
   .add-variante-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 10px; }
 
-  /* venda variante seletor */
-  .variante-selector { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-  .variante-opt { padding: 10px 14px; border-radius: var(--radius-sm); border: 1px solid var(--border2); background: var(--surface2); cursor: pointer; transition: all 0.15s; display: flex; align-items: center; justify-content: space-between; }
-  .variante-opt:hover { border-color: var(--accent); }
-  .variante-opt.selected { border-color: var(--accent); background: rgba(232,184,75,0.08); }
-  .variante-opt.sem-estoque { opacity: 0.4; cursor: not-allowed; }
-  .variante-opt-nome { font-size: 13px; font-weight: 600; color: var(--text); }
-  .variante-opt-estoque { font-size: 11px; color: var(--text2); }
+  /* venda variante — grade visual */
+  .variante-grade-section { margin-top: 14px; }
+  .variante-grade-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
+  .variante-grade-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .variante-chip {
+    padding: 7px 16px; border-radius: 99px; font-size: 13px; font-weight: 700;
+    border: 1.5px solid var(--border2); background: var(--surface2);
+    color: var(--text2); cursor: pointer; transition: all 0.15s; user-select: none;
+    position: relative;
+  }
+  .variante-chip:hover:not(.disabled) { border-color: var(--accent); color: var(--accent); }
+  .variante-chip.active { border-color: var(--accent); background: rgba(232,184,75,0.12); color: var(--accent); }
+  .variante-chip.active-cor { border-color: var(--blue); background: rgba(77,166,255,0.12); color: var(--blue); }
+  .variante-chip.disabled { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
+  .variante-chip-estoque {
+    position: absolute; top: -6px; right: -4px;
+    font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 99px;
+    background: var(--yellow); color: #000; line-height: 1.4;
+  }
+  .variante-chip-estoque.zero { background: var(--red); color: #fff; }
+  .variante-resultado {
+    margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm);
+    background: rgba(232,184,75,0.07); border: 1px solid rgba(232,184,75,0.25);
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+  }
+  .variante-resultado-nome { font-size: 13px; font-weight: 700; color: var(--accent); }
+  .variante-resultado-estoque { font-size: 12px; color: var(--text2); }
 
   @media (max-width: 1200px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -688,11 +707,12 @@ ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #
 // ─────────────────────────────────────────────
 function Dashboard({ dados }) {
   const transacoes = dados.transacoes || [];
-  const hoje = new Date().toDateString();
+  const hojeISO = new Date().toISOString().split("T")[0]; // "2025-03-03"
   const totalReceitas = transacoes.filter(t => t.tipo === "venda").reduce((s, t) => s + t.valor, 0);
   const totalDespesas = transacoes.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
   const saldo = totalReceitas - totalDespesas;
-  const hojeCount = transacoes.filter(t => new Date(t.data).toDateString() === hoje).length;
+  // Compara apenas os primeiros 10 chars (YYYY-MM-DD) para não depender de timezone
+  const hojeCount = transacoes.filter(t => t.data && t.data.slice(0, 10) === hojeISO).length;
 
   const produtosAbaixo = [];
   (dados.produtos || []).forEach(p => {
@@ -752,6 +772,9 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     data: new Date().toISOString().split("T")[0],
     observacoes: "", produtoId: "", varianteId: "", quantidade: "1",
   });
+  // Grade: seleção em 2 passos
+  const [tamSel, setTamSel] = useState(""); // tamanho selecionado
+  const [corSel, setCorSel] = useState(""); // cor selecionada
 
   const categorias = (dados.categorias || []).filter(c => tipo === "venda" ? c.tipo === "receita" : c.tipo === "despesa");
   const produtos = dados.produtos || [];
@@ -759,18 +782,59 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
 
   const produtoSelecionado = produtos.find(p => p.id === form.produtoId);
 
-  // Variantes disponíveis do produto selecionado
   const variantesDisponiveis = useMemo(() => {
     if (!form.produtoId) return [];
     return variantesProduto.filter(v => v.produtoPaiId === form.produtoId);
   }, [form.produtoId, variantesProduto]);
 
   const temVariantes = variantesDisponiveis.length > 0;
-  const varianteSelecionada = variantesDisponiveis.find(v => v.id === form.varianteId);
 
-  const estoqueDisponivel = temVariantes
-    ? (varianteSelecionada ? varianteSelecionada.estoque : 0)
-    : (produtoSelecionado ? produtoSelecionado.quantidadeEstoque : 0);
+  // Extrai tamanhos e cores únicos das variantes (formato "TAMANHO/COR" ou só label)
+  const { tamanhos, coresParaTam } = useMemo(() => {
+    if (!temVariantes) return { tamanhos: [], coresParaTam: {} };
+    const tamSet = new Set();
+    const coresMap = {};
+    variantesDisponiveis.forEach(v => {
+      const partes = v.label.split("/").map(s => s.trim());
+      if (partes.length >= 2) {
+        const [tam, ...corParts] = partes;
+        const cor = corParts.join("/");
+        tamSet.add(tam);
+        if (!coresMap[tam]) coresMap[tam] = [];
+        if (!coresMap[tam].find(c => c.cor === cor)) coresMap[tam].push({ cor, variante: v });
+      } else {
+        // Label sem barra — trata o label todo como "tamanho" sem cor
+        tamSet.add(v.label);
+        coresMap[v.label] = [{ cor: "", variante: v }];
+      }
+    });
+    return { tamanhos: [...tamSet], coresParaTam: coresMap };
+  }, [variantesDisponiveis, temVariantes]);
+
+  // Variante resultante da seleção tamanho + cor
+  const varianteSelecionada = useMemo(() => {
+    if (!tamSel) return null;
+    const opcoes = coresParaTam[tamSel] || [];
+    if (opcoes.length === 1 && opcoes[0].cor === "") return opcoes[0].variante; // sem cor
+    if (!corSel) return null;
+    return opcoes.find(o => o.cor === corSel)?.variante || null;
+  }, [tamSel, corSel, coresParaTam]);
+
+  // Sincroniza varianteId no form quando a seleção da grade muda
+  useEffect(() => {
+    if (varianteSelecionada) {
+      setForm(p => ({ ...p, varianteId: varianteSelecionada.id,
+        descricao: produtoSelecionado ? `${produtoSelecionado.nome} — ${varianteSelecionada.label}` : varianteSelecionada.label,
+        valor: produtoSelecionado ? (produtoSelecionado.precoVenda * (parseInt(p.quantidade) || 1)).toFixed(2) : p.valor
+      }));
+    } else {
+      setForm(p => ({ ...p, varianteId: "" }));
+    }
+  }, [varianteSelecionada]);
+
+  const estoqueDisponivel = varianteSelecionada
+    ? varianteSelecionada.estoque
+    : (!temVariantes && produtoSelecionado ? produtoSelecionado.quantidadeEstoque : 0);
 
   const valorVenda = parseFloat(form.valor) || 0;
   const custoUnitario = produtoSelecionado ? produtoSelecionado.precoCompra : 0;
@@ -782,22 +846,19 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
 
   function handleProduto(id) {
-    set("produtoId", id);
-    set("varianteId", "");
+    setForm(p => ({ ...p, produtoId: id, varianteId: "", descricao: "", valor: "" }));
+    setTamSel(""); setCorSel("");
     if (id) {
       const p = produtos.find(x => x.id === id);
-      if (p) {
-        set("descricao", p.nome);
-        set("valor", (p.precoVenda * 1).toFixed(2));
-      }
+      if (p) setForm(prev => ({ ...prev, produtoId: id, descricao: p.nome, valor: p.precoVenda.toFixed(2) }));
     }
   }
 
-  function handleVariante(varId) {
-    set("varianteId", varId);
-    if (varId && produtoSelecionado) {
-      set("descricao", `${produtoSelecionado.nome} — ${variantesDisponiveis.find(v => v.id === varId)?.label || ""}`);
-    }
+  function handleTam(tam) {
+    setTamSel(tam); setCorSel("");
+    // Se só tem uma variante sem cor, seleciona direto
+    const opcoes = coresParaTam[tam] || [];
+    if (opcoes.length === 1 && opcoes[0].cor === "") { /* useEffect cuida */ }
   }
 
   function handleQtd(q) {
@@ -805,7 +866,7 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     const n = parseInt(q) || 1;
     if (produtoSelecionado) {
       set("valor", (produtoSelecionado.precoVenda * n).toFixed(2));
-      if (n > estoqueDisponivel) toast(`⚠️ Quantidade maior que estoque! Disponível: ${estoqueDisponivel}`, "error");
+      if (n > estoqueDisponivel) toast(`⚠️ Disponível: ${estoqueDisponivel} un.`, "error");
     }
   }
 
@@ -861,22 +922,55 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
               </div>
             </div>
 
-            {/* SELETOR DE VARIANTE */}
+            {/* GRADE VISUAL DE VARIANTES */}
             {form.produtoId && temVariantes && (
-              <div style={{ marginTop: 14 }}>
-                <div className="input-label" style={{ marginBottom: 8 }}>Selecione a variante *</div>
-                <div className="variante-selector">
-                  {variantesDisponiveis.map(v => (
-                    <div key={v.id}
-                      className={`variante-opt ${form.varianteId === v.id ? "selected" : ""} ${v.estoque === 0 ? "sem-estoque" : ""}`}
-                      onClick={() => v.estoque > 0 && handleVariante(v.id)}>
-                      <span className="variante-opt-nome">{v.label}</span>
-                      <span className={`variante-opt-estoque badge ${v.estoque === 0 ? "badge-red" : v.estoque <= 5 ? "badge-yellow" : "badge-green"}`}>
-                        {v.estoque === 0 ? "Sem estoque" : `${v.estoque} un.`}
-                      </span>
-                    </div>
-                  ))}
+              <div className="variante-grade-section">
+                {/* Passo 1: Tamanho */}
+                <div className="variante-grade-label">Tamanho</div>
+                <div className="variante-grade-chips">
+                  {tamanhos.map(tam => {
+                    const opcoes = coresParaTam[tam] || [];
+                    const temEstoque = opcoes.some(o => o.variante.estoque > 0);
+                    const estoqueTotal = opcoes.reduce((s, o) => s + (o.variante.estoque || 0), 0);
+                    return (
+                      <div key={tam}
+                        className={`variante-chip ${tamSel === tam ? "active" : ""} ${!temEstoque ? "disabled" : ""}`}
+                        onClick={() => temEstoque && handleTam(tam)}>
+                        {tam}
+                        {estoqueTotal <= 5 && estoqueTotal > 0 && <span className="variante-chip-estoque">{estoqueTotal}</span>}
+                        {estoqueTotal === 0 && <span className="variante-chip-estoque zero">0</span>}
+                      </div>
+                    );
+                  })}
                 </div>
+
+                {/* Passo 2: Cor (só aparece se tamanho selecionado e tem cores) */}
+                {tamSel && coresParaTam[tamSel] && coresParaTam[tamSel][0]?.cor !== "" && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="variante-grade-label">Cor</div>
+                    <div className="variante-grade-chips">
+                      {(coresParaTam[tamSel] || []).map(({ cor, variante: v }) => (
+                        <div key={cor}
+                          className={`variante-chip ${corSel === cor ? "active-cor" : ""} ${v.estoque === 0 ? "disabled" : ""}`}
+                          onClick={() => v.estoque > 0 && setCorSel(cor)}>
+                          {cor}
+                          {v.estoque <= 5 && v.estoque > 0 && <span className="variante-chip-estoque">{v.estoque}</span>}
+                          {v.estoque === 0 && <span className="variante-chip-estoque zero">0</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Resultado da seleção */}
+                {varianteSelecionada && (
+                  <div className="variante-resultado">
+                    <span className="variante-resultado-nome">✓ {varianteSelecionada.label}</span>
+                    <span className={`badge ${varianteSelecionada.estoque <= 5 ? "badge-yellow" : "badge-green"}`}>
+                      {varianteSelecionada.estoque} un. em estoque
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
