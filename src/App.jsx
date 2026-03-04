@@ -247,7 +247,6 @@ const CSS = `
   .spinner { width:32px; height:32px; border:3px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
 
-  /* ── VARIANTES ── */
   .produto-pai-row td { background: var(--surface); }
   .produto-pai-row:hover td { background: rgba(232,184,75,0.03) !important; }
   .produto-expand-btn { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 4px 8px; cursor: pointer; color: var(--text2); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; white-space: nowrap; }
@@ -258,14 +257,12 @@ const CSS = `
   .variante-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text2); }
   .variante-label-badge { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: rgba(77,166,255,0.1); color: var(--blue); border: 1px solid rgba(77,166,255,0.2); }
 
-  /* variante form */
   .variante-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .variante-item { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .variante-item-label { font-size: 13px; font-weight: 700; color: var(--text); flex: 1; min-width: 140px; }
   .variante-item-estoque { font-size: 12px; color: var(--text2); }
   .add-variante-row { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; margin-top: 10px; }
 
-  /* venda variante — grade visual */
   .variante-grade-section { margin-top: 14px; }
   .variante-grade-label { font-size: 11px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 8px; }
   .variante-grade-chips { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -292,6 +289,9 @@ const CSS = `
   }
   .variante-resultado-nome { font-size: 13px; font-weight: 700; color: var(--accent); }
   .variante-resultado-estoque { font-size: 12px; color: var(--text2); }
+
+  .info-box { background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--text2); }
+  .warn-box { background: rgba(245,166,35,0.07); border: 1px solid rgba(245,166,35,0.25); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--yellow); }
 
   @media (max-width: 1200px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -338,6 +338,7 @@ const Icon = ({ name, size = 16 }) => {
     chevronDown: <path d="M7 10l5 5 5-5z" fill="currentColor"/>,
     chevronRight: <path d="M10 17l5-5-5-5v10z" fill="currentColor"/>,
     variant: <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" fill="currentColor"/>,
+    refresh: <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -520,7 +521,7 @@ function LoginScreen({ primeiroAcesso }) {
 }
 
 // ─────────────────────────────────────────────
-// GERENCIAR USUÁRIOS
+// GERENCIAR USUÁRIOS — com correção EMAIL_EXISTS
 // ─────────────────────────────────────────────
 function GerenciarUsuarios({ usuarioAtual }) {
   const [usuarios, setUsuarios] = useState([]);
@@ -528,7 +529,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
   const [form, setForm] = useState({ nome: "", email: "", senha: "", cargo: "funcionario" });
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [confirmId, setConfirmId] = useState(null);
+  const [confirmRemover, setConfirmRemover] = useState(null); // { id, uid, nome }
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "usuarios"), snap => {
@@ -540,23 +541,122 @@ function GerenciarUsuarios({ usuarioAtual }) {
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
 
+  // ── CRIAR USUÁRIO ──
+  // Estratégia: tenta criar no Auth. Se EMAIL_EXISTS, verifica se o documento
+  // Firestore foi apagado (usuário "removido" do sistema mas ainda existe no Auth).
+  // Nesse caso, faz login temporário para obter o UID e recria o documento.
   async function criarUsuario(e) {
     e.preventDefault();
-    if (!form.nome.trim() || !form.email.trim() || form.senha.length < 6) return toast("Preencha todos os campos. Senha mínimo 6 caracteres.", "error");
+    if (!form.nome.trim() || !form.email.trim() || form.senha.length < 6)
+      return toast("Preencha todos os campos. Senha mínima: 6 caracteres.", "error");
+
     setLoading(true);
     try {
-      const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${auth.app.options.apiKey}`,
-        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: form.email.trim(), password: form.senha, returnSecureToken: true }) });
-      const data = await res.json();
-      if (data.error) throw new Error(data.error.message);
-      await setDoc(doc(db, "usuarios", data.localId), { uid: data.localId, nome: form.nome.trim(), email: form.email.trim(), cargo: form.cargo, criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid });
+      // 1) Tenta criar novo usuário no Firebase Auth
+      const resCriar = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${auth.app.options.apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: form.email.trim(), password: form.senha, returnSecureToken: true }),
+        }
+      );
+      const dataCriar = await resCriar.json();
+
+      if (dataCriar.error) {
+        if (dataCriar.error.message === "EMAIL_EXISTS") {
+          // 2) E-mail já existe no Auth — tenta atualizar a senha e reutilizar a conta
+          //    Faz login com a nova senha primeiro (caso o usuário tenha sido recriado antes)
+          //    Se falhar, usa o endpoint de update de senha via signIn + token
+
+          // Tenta signin para obter o idToken e UID
+          const resSignin = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${auth.app.options.apiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: form.email.trim(), password: form.senha, returnSecureToken: true }),
+            }
+          );
+          const dataSignin = await resSignin.json();
+
+          let localId = null;
+
+          if (!dataSignin.error) {
+            // Conseguiu fazer login com a senha fornecida — reutiliza o UID
+            localId = dataSignin.localId;
+          } else {
+            // Senha diferente — atualiza a senha via sendPasswordReset não é suficiente.
+            // Tentamos atualizar via Admin não disponível no client.
+            // Orientamos o usuário a usar outro e-mail ou deletar via Console.
+            toast(
+              `O e-mail "${form.email.trim()}" já está registrado com outra senha. ` +
+              `Use um e-mail diferente ou delete o usuário diretamente no Console do Firebase Authentication.`,
+              "error"
+            );
+            setLoading(false);
+            return;
+          }
+
+          // Verifica se já existe doc no Firestore com este uid
+          const jaExiste = usuarios.find(u => u.uid === localId);
+          if (jaExiste) {
+            toast(`Este e-mail já está ativo no sistema como "${jaExiste.nome}".`, "error");
+            setLoading(false);
+            return;
+          }
+
+          // Recria o documento Firestore (conta Auth reutilizada)
+          await setDoc(doc(db, "usuarios", localId), {
+            uid: localId,
+            nome: form.nome.trim(),
+            email: form.email.trim(),
+            cargo: form.cargo,
+            criadoEm: new Date().toISOString(),
+            criadoPor: usuarioAtual?.uid,
+          });
+
+          toast(`Usuário ${form.nome} reativado com sucesso! ✓`);
+          setForm({ nome: "", email: "", senha: "", cargo: "funcionario" });
+          setModal(false);
+          setLoading(false);
+          return;
+        }
+
+        // Outros erros do Auth
+        const msgs = { "WEAK_PASSWORD": "Senha fraca (mínimo 6 caracteres).", "INVALID_EMAIL": "E-mail inválido." };
+        throw new Error(msgs[dataCriar.error.message] || dataCriar.error.message);
+      }
+
+      // 3) Criação bem-sucedida — salva no Firestore
+      const localId = dataCriar.localId;
+      await setDoc(doc(db, "usuarios", localId), {
+        uid: localId,
+        nome: form.nome.trim(),
+        email: form.email.trim(),
+        cargo: form.cargo,
+        criadoEm: new Date().toISOString(),
+        criadoPor: usuarioAtual?.uid,
+      });
+
       toast(`Usuário ${form.nome} criado! ✓`);
       setForm({ nome: "", email: "", senha: "", cargo: "funcionario" });
       setModal(false);
     } catch (err) {
-      const msgs = { "EMAIL_EXISTS": "E-mail já cadastrado.", "WEAK_PASSWORD": "Senha fraca." };
-      toast(msgs[err.message] || "Erro ao criar usuário.", "error");
-    } finally { setLoading(false); }
+      toast(err.message || "Erro ao criar usuário.", "error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── REMOVER USUÁRIO ──
+  // Remove apenas do Firestore. O registro no Firebase Auth permanece,
+  // mas ao tentar recadastrar com a mesma senha, o sistema fará o reaproveitamento automático.
+  async function confirmarRemover() {
+    if (!confirmRemover) return;
+    await deleteDoc(doc(db, "usuarios", confirmRemover.id));
+    toast(`Usuário "${confirmRemover.nome}" removido do sistema.`);
+    setConfirmRemover(null);
   }
 
   return (
@@ -565,33 +665,66 @@ function GerenciarUsuarios({ usuarioAtual }) {
         <div><h1 className="page-title">Usuários</h1><p className="page-sub">Gerencie quem tem acesso ao sistema</p></div>
         <button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="plus" />Novo Usuário</button>
       </div>
+
+      {/* Aviso explicativo */}
+      <div className="info-box" style={{ marginBottom: 16 }}>
+        💡 <strong>Dica:</strong> Ao remover um usuário e precisar recadastrá-lo com o mesmo e-mail,
+        use <strong>exatamente a mesma senha</strong> e o sistema reativará o acesso automaticamente.
+      </div>
+
       <div className="card"><div className="card-body">
-        {loadingUsers ? <div style={{ padding: 40, textAlign: "center", color: "var(--text2)" }}>Carregando...</div>
-          : usuarios.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Nenhum usuário</div></div>
-          : <div className="usuarios-grid">
-            {usuarios.map(u => (
-              <div key={u.id} className="usuario-card">
-                <div className="usuario-card-top">
-                  <div className="usuario-avatar" style={{ background: u.cargo === "dono" ? "rgba(232,184,75,0.15)" : "rgba(77,166,255,0.12)", color: u.cargo === "dono" ? "var(--accent)" : "var(--blue)" }}>
-                    {(u.nome || "?")[0].toUpperCase()}
+        {loadingUsers
+          ? <div style={{ padding: 40, textAlign: "center", color: "var(--text2)" }}>Carregando...</div>
+          : usuarios.length === 0
+            ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Nenhum usuário</div></div>
+            : <div className="usuarios-grid">
+              {usuarios.map(u => (
+                <div key={u.id} className="usuario-card">
+                  <div className="usuario-card-top">
+                    <div className="usuario-avatar" style={{
+                      background: u.cargo === "dono" ? "rgba(232,184,75,0.15)" : "rgba(77,166,255,0.12)",
+                      color: u.cargo === "dono" ? "var(--accent)" : "var(--blue)"
+                    }}>
+                      {(u.nome || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="usuario-info">
+                      <div className="usuario-nome">{u.nome}</div>
+                      <div className="usuario-email">{u.email}</div>
+                    </div>
                   </div>
-                  <div className="usuario-info"><div className="usuario-nome">{u.nome}</div><div className="usuario-email">{u.email}</div></div>
+                  <div className="usuario-card-bottom">
+                    <span className={`usuario-role ${u.cargo === "dono" ? "role-dono" : "role-func"}`}>
+                      {u.cargo === "dono" ? "👑 Dono" : "👤 Funcionário"}
+                    </span>
+                    {u.uid === usuarioAtual?.uid
+                      ? <span style={{ fontSize: 11, color: "var(--text2)", padding: "4px 8px", borderRadius: 99, background: "var(--surface3)" }}>Você</span>
+                      : <button
+                          className="btn btn-sm btn-danger"
+                          onClick={() => setConfirmRemover({ id: u.id, uid: u.uid, nome: u.nome })}
+                        >
+                          <Icon name="trash" size={13} />Remover
+                        </button>
+                    }
+                  </div>
                 </div>
-                <div className="usuario-card-bottom">
-                  <span className={`usuario-role ${u.cargo === "dono" ? "role-dono" : "role-func"}`}>{u.cargo === "dono" ? "👑 Dono" : "👤 Funcionário"}</span>
-                  {u.uid === usuarioAtual?.uid ? <span style={{ fontSize: 11, color: "var(--text2)", padding: "4px 8px", borderRadius: 99, background: "var(--surface3)" }}>Você</span>
-                    : <button className="btn btn-sm btn-danger" onClick={async () => { await deleteDoc(doc(db, "usuarios", u.id)); toast("Usuário removido"); }}><Icon name="trash" size={13} />Remover</button>}
-                </div>
-              </div>
-            ))}
-          </div>}
+              ))}
+            </div>
+        }
       </div></div>
-      <Modal open={modal} onClose={() => setModal(false)} title="Novo Usuário">
+
+      {/* Modal criar usuário */}
+      <Modal open={modal} onClose={() => { setModal(false); setForm({ nome: "", email: "", senha: "", cargo: "funcionario" }); }} title="Novo Usuário">
         <form onSubmit={criarUsuario}>
           <div className="form-grid" style={{ gap: 14 }}>
             <div className="input-group"><label className="input-label">Nome</label><input className="input" value={form.nome} onChange={e => set("nome", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">E-mail</label><input className="input" type="email" value={form.email} onChange={e => set("email", e.target.value)} /></div>
-            <div className="input-group"><label className="input-label">Senha</label><input className="input" value={form.senha} onChange={e => set("senha", e.target.value)} /></div>
+            <div className="input-group">
+              <label className="input-label">Senha</label>
+              <input className="input" type="password" value={form.senha} onChange={e => set("senha", e.target.value)} placeholder="Mínimo 6 caracteres" />
+              <span style={{ fontSize: 11, color: "var(--text2)", marginTop: 2 }}>
+                Se estiver reativando um usuário removido, use a mesma senha anterior.
+              </span>
+            </div>
             <div className="input-group"><label className="input-label">Cargo</label>
               <select className="input" value={form.cargo} onChange={e => set("cargo", e.target.value)}>
                 <option value="funcionario">Funcionário</option>
@@ -601,10 +734,20 @@ function GerenciarUsuarios({ usuarioAtual }) {
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
-            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? "Criando..." : "Criar"}</button>
+            <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? "Processando..." : "Criar"}</button>
           </div>
         </form>
       </Modal>
+
+      {/* Confirm remover */}
+      <ConfirmDialog
+        open={!!confirmRemover}
+        title="Remover Usuário?"
+        text={`"${confirmRemover?.nome}" perderá o acesso ao sistema. Para reativar depois, use o mesmo e-mail e senha.`}
+        danger
+        onConfirm={confirmarRemover}
+        onCancel={() => setConfirmRemover(null)}
+      />
     </div>
   );
 }
@@ -630,7 +773,6 @@ function RelatorioPDF({ dados }) {
   const despesasMes = transacoesFiltradas.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
   const saldoMes = receitasMes - despesasMes;
 
-  // Produtos com estoque crítico (considera variantes)
   const produtosAbaixo = [];
   produtos.forEach(p => {
     const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
@@ -686,7 +828,8 @@ ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #
       <div className="card">
         <div className="card-header" style={{ padding: "18px 20px 14px" }}><span className="card-title">Transações ({transacoesFiltradas.length})</span></div>
         <div className="table-wrap">
-          {transacoesFiltradas.length === 0 ? <div className="empty-state"><div className="empty-icon">📄</div><div className="empty-text">Nenhuma transação neste mês</div></div>
+          {transacoesFiltradas.length === 0
+            ? <div className="empty-state"><div className="empty-icon">📄</div><div className="empty-text">Nenhuma transação neste mês</div></div>
             : <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
               <tbody>{transacoesFiltradas.map(t => (
                 <tr key={t.id}>
@@ -695,7 +838,8 @@ ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #
                   <td><span className={`badge ${t.tipo === "venda" ? "badge-green" : "badge-red"}`}>{t.tipo === "venda" ? "Venda" : "Despesa"}</span></td>
                   <td style={{ fontWeight: 700, color: t.tipo === "venda" ? "var(--green)" : "var(--red)", textAlign: "right" }}>{formatBRL(t.valor)}</td>
                 </tr>
-              ))}</tbody></table>}
+              ))}</tbody></table>
+          }
         </div>
       </div>
     </div>
@@ -707,11 +851,10 @@ ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #
 // ─────────────────────────────────────────────
 function Dashboard({ dados }) {
   const transacoes = dados.transacoes || [];
-  const hojeISO = new Date().toISOString().split("T")[0]; // "2025-03-03"
+  const hojeISO = new Date().toISOString().split("T")[0];
   const totalReceitas = transacoes.filter(t => t.tipo === "venda").reduce((s, t) => s + t.valor, 0);
   const totalDespesas = transacoes.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
   const saldo = totalReceitas - totalDespesas;
-  // Compara apenas os primeiros 10 chars (YYYY-MM-DD) para não depender de timezone
   const hojeCount = transacoes.filter(t => t.data && t.data.slice(0, 10) === hojeISO).length;
 
   const produtosAbaixo = [];
@@ -747,7 +890,8 @@ function Dashboard({ dados }) {
       <div className="card">
         <div className="card-header" style={{ padding: "20px 20px 14px" }}><span className="card-title">Últimas Transações</span></div>
         <div className="table-wrap">
-          {ultimas.length === 0 ? <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Nenhuma transação ainda</div></div>
+          {ultimas.length === 0
+            ? <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Nenhuma transação ainda</div></div>
             : <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
               <tbody>{ultimas.map(t => (
                 <tr key={t.id}>
@@ -756,7 +900,8 @@ function Dashboard({ dados }) {
                   <td><span className={`badge ${t.tipo === "venda" ? "badge-green" : "badge-red"}`}>{t.tipo === "venda" ? "Venda" : "Despesa"}</span></td>
                   <td style={{ fontWeight: 700, color: t.tipo === "venda" ? "var(--green)" : "var(--red)", textAlign: "right", whiteSpace: "nowrap" }}>{formatBRL(t.valor)}</td>
                 </tr>
-              ))}</tbody></table>}
+              ))}</tbody></table>
+          }
         </div>
       </div>
     </div>
@@ -764,7 +909,7 @@ function Dashboard({ dados }) {
 }
 
 // ─────────────────────────────────────────────
-// FORM TRANSAÇÃO — com suporte a variantes
+// FORM TRANSAÇÃO
 // ─────────────────────────────────────────────
 function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
   const [form, setForm] = useState({
@@ -772,9 +917,8 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     data: new Date().toISOString().split("T")[0],
     observacoes: "", produtoId: "", varianteId: "", quantidade: "1",
   });
-  // Grade: seleção em 2 passos
-  const [tamSel, setTamSel] = useState(""); // tamanho selecionado
-  const [corSel, setCorSel] = useState(""); // cor selecionada
+  const [tamSel, setTamSel] = useState("");
+  const [corSel, setCorSel] = useState("");
 
   const categorias = (dados.categorias || []).filter(c => tipo === "venda" ? c.tipo === "receita" : c.tipo === "despesa");
   const produtos = dados.produtos || [];
@@ -789,7 +933,6 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
 
   const temVariantes = variantesDisponiveis.length > 0;
 
-  // Extrai tamanhos e cores únicos das variantes (formato "TAMANHO/COR" ou só label)
   const { tamanhos, coresParaTam } = useMemo(() => {
     if (!temVariantes) return { tamanhos: [], coresParaTam: {} };
     const tamSet = new Set();
@@ -803,7 +946,6 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
         if (!coresMap[tam]) coresMap[tam] = [];
         if (!coresMap[tam].find(c => c.cor === cor)) coresMap[tam].push({ cor, variante: v });
       } else {
-        // Label sem barra — trata o label todo como "tamanho" sem cor
         tamSet.add(v.label);
         coresMap[v.label] = [{ cor: "", variante: v }];
       }
@@ -811,19 +953,18 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     return { tamanhos: [...tamSet], coresParaTam: coresMap };
   }, [variantesDisponiveis, temVariantes]);
 
-  // Variante resultante da seleção tamanho + cor
   const varianteSelecionada = useMemo(() => {
     if (!tamSel) return null;
     const opcoes = coresParaTam[tamSel] || [];
-    if (opcoes.length === 1 && opcoes[0].cor === "") return opcoes[0].variante; // sem cor
+    if (opcoes.length === 1 && opcoes[0].cor === "") return opcoes[0].variante;
     if (!corSel) return null;
     return opcoes.find(o => o.cor === corSel)?.variante || null;
   }, [tamSel, corSel, coresParaTam]);
 
-  // Sincroniza varianteId no form quando a seleção da grade muda
   useEffect(() => {
     if (varianteSelecionada) {
-      setForm(p => ({ ...p, varianteId: varianteSelecionada.id,
+      setForm(p => ({
+        ...p, varianteId: varianteSelecionada.id,
         descricao: produtoSelecionado ? `${produtoSelecionado.nome} — ${varianteSelecionada.label}` : varianteSelecionada.label,
         valor: produtoSelecionado ? (produtoSelecionado.precoVenda * (parseInt(p.quantidade) || 1)).toFixed(2) : p.valor
       }));
@@ -856,9 +997,6 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
 
   function handleTam(tam) {
     setTamSel(tam); setCorSel("");
-    // Se só tem uma variante sem cor, seleciona direto
-    const opcoes = coresParaTam[tam] || [];
-    if (opcoes.length === 1 && opcoes[0].cor === "") { /* useEffect cuida */ }
   }
 
   function handleQtd(q) {
@@ -889,7 +1027,6 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     onSalvar(payload);
   }
 
-  // produtos que têm estoque (sem variantes) ou variantes com estoque
   const produtosDisponiveis = produtos.filter(p => {
     const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
     if (vars.length > 0) return vars.some(v => v.estoque > 0);
@@ -922,10 +1059,8 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
               </div>
             </div>
 
-            {/* GRADE VISUAL DE VARIANTES */}
             {form.produtoId && temVariantes && (
               <div className="variante-grade-section">
-                {/* Passo 1: Tamanho */}
                 <div className="variante-grade-label">Tamanho</div>
                 <div className="variante-grade-chips">
                   {tamanhos.map(tam => {
@@ -944,7 +1079,6 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
                   })}
                 </div>
 
-                {/* Passo 2: Cor (só aparece se tamanho selecionado e tem cores) */}
                 {tamSel && coresParaTam[tamSel] && coresParaTam[tamSel][0]?.cor !== "" && (
                   <div style={{ marginTop: 12 }}>
                     <div className="variante-grade-label">Cor</div>
@@ -962,7 +1096,6 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
                   </div>
                 )}
 
-                {/* Resultado da seleção */}
                 {varianteSelecionada && (
                   <div className="variante-resultado">
                     <span className="variante-resultado-nome">✓ {varianteSelecionada.label}</span>
@@ -1053,7 +1186,8 @@ function Transacoes({ dados, onRemover }) {
       </div>
       <div className="card">
         <div className="table-wrap">
-          {transacoes.length === 0 ? <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Nenhuma transação</div></div>
+          {transacoes.length === 0
+            ? <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Nenhuma transação</div></div>
             : <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th>Cliente</th><th style={{ textAlign: "right" }}>Valor</th><th></th></tr></thead>
               <tbody>{transacoes.map(t => (
                 <tr key={t.id}>
@@ -1064,7 +1198,8 @@ function Transacoes({ dados, onRemover }) {
                   <td style={{ fontWeight: 700, color: t.tipo === "venda" ? "var(--green)" : "var(--red)", textAlign: "right", whiteSpace: "nowrap" }}>{formatBRL(t.valor)}</td>
                   <td><button className="btn-icon danger" onClick={() => setConfirmId(t.id)}><Icon name="trash" /></button></td>
                 </tr>
-              ))}</tbody></table>}
+              ))}</tbody></table>
+          }
         </div>
       </div>
       <ConfirmDialog open={!!confirmId} title="Remover Transação?" text="Esta ação não pode ser desfeita." danger
@@ -1079,15 +1214,14 @@ function Transacoes({ dados, onRemover }) {
 // ─────────────────────────────────────────────
 function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVariante, onRemoverVariante, onAtualizarVariante }) {
   const [modal, setModal] = useState(false);
-  const [modalVariantes, setModalVariantes] = useState(null); // produtoPai
+  const [modalVariantes, setModalVariantes] = useState(null);
   const [editando, setEditando] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
   const [expandidos, setExpandidos] = useState({});
   const [form, setForm] = useState({ nome: "", descricao: "", precoCompra: "", precoVenda: "", quantidadeEstoque: "", quantidadeMinima: "5", sku: "" });
 
-  // Nova variante
   const [novaVariante, setNovaVariante] = useState({ label: "", estoque: "" });
-  const [editandoVariante, setEditandoVariante] = useState(null); // { id, label, estoque }
+  const [editandoVariante, setEditandoVariante] = useState(null);
 
   const produtos = dados.produtos || [];
   const variantesProduto = dados.variantesProduto || [];
@@ -1150,17 +1284,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
             <div className="empty-state"><div className="empty-icon">📦</div><div className="empty-text">Nenhum produto cadastrado</div></div>
           ) : (
             <table>
-              <thead>
-                <tr>
-                  <th>Produto</th>
-                  <th>SKU</th>
-                  <th>Compra</th>
-                  <th>Venda</th>
-                  <th>Estoque</th>
-                  <th>Margem</th>
-                  <th></th>
-                </tr>
-              </thead>
+              <thead><tr><th>Produto</th><th>SKU</th><th>Compra</th><th>Venda</th><th>Estoque</th><th>Margem</th><th></th></tr></thead>
               <tbody>
                 {produtos.map(p => {
                   const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
@@ -1169,9 +1293,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                   const baixo = estoqueTotal <= p.quantidadeMinima;
                   const margem = p.precoCompra > 0 ? ((p.precoVenda - p.precoCompra) / p.precoCompra * 100) : 0;
                   const expandido = expandidos[p.id];
-
                   return [
-                    // Linha produto-pai
                     <tr key={p.id} className="produto-pai-row">
                       <td>
                         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -1208,8 +1330,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                         </div>
                       </td>
                     </tr>,
-                    // Linhas de variantes (expandidas)
-                    ...(temVars && expandido ? vars.map((v, i) => {
+                    ...(temVars && expandido ? vars.map(v => {
                       const vBaixo = v.estoque <= (p.quantidadeMinima || 5);
                       return (
                         <tr key={`var-${v.id}`} className="variante-row">
@@ -1222,9 +1343,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                           <td style={{ color: "var(--text2)", fontSize: 11 }}>—</td>
                           <td style={{ color: "var(--text2)", fontSize: 12 }}>—</td>
                           <td style={{ color: "var(--text2)", fontSize: 12 }}>—</td>
-                          <td>
-                            <span className={`badge ${v.estoque === 0 ? "badge-red" : vBaixo ? "badge-yellow" : "badge-green"}`}>{v.estoque} un.</span>
-                          </td>
+                          <td><span className={`badge ${v.estoque === 0 ? "badge-red" : vBaixo ? "badge-yellow" : "badge-green"}`}>{v.estoque} un.</span></td>
                           <td></td>
                           <td>
                             <div style={{ display: "flex", gap: 6 }}>
@@ -1243,7 +1362,6 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
         </div>
       </div>
 
-      {/* Modal produto */}
       <Modal open={modal} onClose={() => setModal(false)} title={editando ? "Editar Produto" : "Novo Produto"} wide>
         <form onSubmit={submit}>
           <div className="form-grid form-grid-2">
@@ -1280,7 +1398,6 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
         </form>
       </Modal>
 
-      {/* Modal editar variante inline */}
       <Modal open={!!editandoVariante} onClose={() => setEditandoVariante(null)} title="Editar Variante">
         {editandoVariante && (
           <form onSubmit={salvarEdicaoVariante}>
@@ -1302,7 +1419,6 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
         )}
       </Modal>
 
-      {/* Modal gerenciar variantes */}
       <Modal open={!!modalVariantes} onClose={() => setModalVariantes(null)} title={`Variantes — ${modalVariantes?.nome || ""}`} wide>
         {modalVariantes && (() => {
           const vars = variantesProduto.filter(v => v.produtoPaiId === modalVariantes.id);
@@ -1311,7 +1427,6 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
               <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>
                 Cada variante é uma combinação livre, ex: <strong style={{ color: "var(--text)" }}>P/Preto</strong>, <strong style={{ color: "var(--text)" }}>G/Azul</strong>, <strong style={{ color: "var(--text)" }}>M/Branco</strong>. Você define o label livremente.
               </div>
-
               {vars.length === 0 ? (
                 <div style={{ textAlign: "center", padding: "28px 0", color: "var(--text2)", fontSize: 13 }}>Nenhuma variante ainda. Adicione abaixo.</div>
               ) : (
@@ -1328,7 +1443,6 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                   ))}
                 </div>
               )}
-
               <div style={{ borderTop: "1px solid var(--border)", paddingTop: 16 }}>
                 <div className="input-label" style={{ marginBottom: 10 }}>Adicionar nova variante</div>
                 <form onSubmit={salvarVariante}>
@@ -1385,7 +1499,8 @@ function Clientes({ dados, onAdicionar, onRemover, onAtualizar }) {
     <div>
       <div className="page-header"><div><h1 className="page-title">Clientes</h1><p className="page-sub">Base de clientes</p></div><button className="btn btn-primary" onClick={() => abrirModal()}><Icon name="plus" /> Novo</button></div>
       <div className="card"><div className="table-wrap">
-        {clientes.length === 0 ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Nenhum cliente</div></div>
+        {clientes.length === 0
+          ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Nenhum cliente</div></div>
           : <table><thead><tr><th>Nome</th><th>Telefone</th><th>Email</th><th>Desde</th><th></th></tr></thead>
             <tbody>{clientes.map(c => (
               <tr key={c.id}>
@@ -1395,7 +1510,8 @@ function Clientes({ dados, onAdicionar, onRemover, onAtualizar }) {
                 <td style={{ color: "var(--text2)" }}>{formatData(c.dataCriacao)}</td>
                 <td><div style={{ display: "flex", gap: 6 }}><button className="btn-icon" onClick={() => abrirModal(c)}><Icon name="edit" /></button><button className="btn-icon danger" onClick={() => setConfirmId(c.id)}><Icon name="trash" /></button></div></td>
               </tr>
-            ))}</tbody></table>}
+            ))}</tbody></table>
+        }
       </div></div>
       <Modal open={modal} onClose={() => setModal(false)} title={editando ? "Editar Cliente" : "Novo Cliente"}>
         <form onSubmit={submit}>
@@ -1431,7 +1547,8 @@ function Categorias({ dados, onAdicionar, onRemover }) {
     <div>
       <div className="page-header"><div><h1 className="page-title">Categorias</h1></div><button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="plus" /> Nova</button></div>
       <div className="card"><div className="table-wrap">
-        {categorias.length === 0 ? <div className="empty-state"><div className="empty-icon">🏷️</div><div className="empty-text">Nenhuma categoria</div></div>
+        {categorias.length === 0
+          ? <div className="empty-state"><div className="empty-icon">🏷️</div><div className="empty-text">Nenhuma categoria</div></div>
           : <table><thead><tr><th>Nome</th><th>Tipo</th><th>Cor</th><th></th></tr></thead>
             <tbody>{categorias.map(c => (
               <tr key={c.id}>
@@ -1440,7 +1557,8 @@ function Categorias({ dados, onAdicionar, onRemover }) {
                 <td><div style={{ width: 20, height: 20, borderRadius: 6, background: c.cor, border: "1px solid var(--border2)" }} /></td>
                 <td><button className="btn-icon danger" onClick={() => setConfirmId(c.id)}><Icon name="trash" /></button></td>
               </tr>
-            ))}</tbody></table>}
+            ))}</tbody></table>
+        }
       </div></div>
       <Modal open={modal} onClose={() => setModal(false)} title="Nova Categoria">
         <form onSubmit={submit}>
@@ -1574,7 +1692,6 @@ export default function App() {
   const [produtos, loadingP] = useCollection("produtos");
   const [clientes, loadingC] = useCollection("clientes");
   const [categorias, loadingCat] = useCollection("categorias");
-  // Nova coleção: variantesProduto
   const [variantesProduto, loadingVP] = useCollection("variantesProduto");
 
   const loading = loadingT || loadingP || loadingC || loadingCat || loadingVP;
@@ -1584,9 +1701,6 @@ export default function App() {
       CATEGORIAS_PADRAO.forEach(c => setDoc(doc(db, "categorias", c.id), c));
     }
   }, [loadingCat, categorias.length]);
-
-  // Migração: produtos antigos sem variantes permanecem funcionando normalmente
-  // (quantidadeEstoque é usado como fallback quando não há variantes)
 
   const dados = { transacoes, produtos, clientes, categorias, variantesProduto };
 
@@ -1598,13 +1712,11 @@ export default function App() {
 
     if (t.produtoId && t.tipo === "venda") {
       if (t.varianteId) {
-        // Desconta da variante específica
         const variante = variantesProduto.find(v => v.id === t.varianteId);
         if (variante) {
           await setDoc(doc(db, "variantesProduto", variante.id), { ...variante, estoque: Math.max(0, variante.estoque - t.quantidade) });
         }
       } else {
-        // Desconta do produto-pai (sem variantes)
         const prod = produtos.find(p => p.id === t.produtoId);
         if (prod) {
           await setDoc(doc(db, "produtos", prod.id), { ...prod, quantidadeEstoque: Math.max(0, prod.quantidadeEstoque - t.quantidade) });
@@ -1628,14 +1740,12 @@ export default function App() {
 
   async function adicionarProduto(p) { const id = uid(); await setDoc(doc(db, "produtos", id), { ...p, id, dataCriacao: new Date().toISOString() }); }
   async function removerProduto(id) {
-    // Remove o produto e todas as suas variantes
     await deleteDoc(doc(db, "produtos", id));
     const vars = variantesProduto.filter(v => v.produtoPaiId === id);
     for (const v of vars) await deleteDoc(doc(db, "variantesProduto", v.id));
   }
   async function atualizarProduto(id, upd) { const p = produtos.find(x => x.id === id); if (p) await setDoc(doc(db, "produtos", id), { ...p, ...upd }); }
 
-  // CRUD variantes
   async function adicionarVariante(v) { const id = uid(); await setDoc(doc(db, "variantesProduto", id), { ...v, id, criadoEm: new Date().toISOString() }); }
   async function removerVariante(id) { await deleteDoc(doc(db, "variantesProduto", id)); }
   async function atualizarVariante(id, upd) { const v = variantesProduto.find(x => x.id === id); if (v) await setDoc(doc(db, "variantesProduto", id), { ...v, ...upd }); }
