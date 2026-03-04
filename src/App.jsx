@@ -521,7 +521,7 @@ function LoginScreen({ primeiroAcesso }) {
 }
 
 // ─────────────────────────────────────────────
-// GERENCIAR USUÁRIOS — com correção EMAIL_EXISTS
+// GERENCIAR USUÁRIOS — com correção EMAIL_EXISTS + troca de senha
 // ─────────────────────────────────────────────
 function GerenciarUsuarios({ usuarioAtual }) {
   const [usuarios, setUsuarios] = useState([]);
@@ -529,7 +529,12 @@ function GerenciarUsuarios({ usuarioAtual }) {
   const [form, setForm] = useState({ nome: "", email: "", senha: "", cargo: "funcionario" });
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
-  const [confirmRemover, setConfirmRemover] = useState(null); // { id, uid, nome }
+  const [confirmRemover, setConfirmRemover] = useState(null);
+  // Modal troca de senha
+  const [modalSenha, setModalSenha] = useState(null); // usuário alvo { id, uid, nome, email }
+  const [formSenha, setFormSenha] = useState({ senhaAtual: "", senhaNova: "", confirmar: "" });
+  const [loadingSenha, setLoadingSenha] = useState(false);
+  const [showSenhas, setShowSenhas] = useState(false);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "usuarios"), snap => {
@@ -540,11 +545,9 @@ function GerenciarUsuarios({ usuarioAtual }) {
   }, []);
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  function setSenha(k, v) { setFormSenha(p => ({ ...p, [k]: v })); }
 
   // ── CRIAR USUÁRIO ──
-  // Estratégia: tenta criar no Auth. Se EMAIL_EXISTS, verifica se o documento
-  // Firestore foi apagado (usuário "removido" do sistema mas ainda existe no Auth).
-  // Nesse caso, faz login temporário para obter o UID e recria o documento.
   async function criarUsuario(e) {
     e.preventDefault();
     if (!form.nome.trim() || !form.email.trim() || form.senha.length < 6)
@@ -552,7 +555,6 @@ function GerenciarUsuarios({ usuarioAtual }) {
 
     setLoading(true);
     try {
-      // 1) Tenta criar novo usuário no Firebase Auth
       const resCriar = await fetch(
         `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${auth.app.options.apiKey}`,
         {
@@ -565,11 +567,6 @@ function GerenciarUsuarios({ usuarioAtual }) {
 
       if (dataCriar.error) {
         if (dataCriar.error.message === "EMAIL_EXISTS") {
-          // 2) E-mail já existe no Auth — tenta atualizar a senha e reutilizar a conta
-          //    Faz login com a nova senha primeiro (caso o usuário tenha sido recriado antes)
-          //    Se falhar, usa o endpoint de update de senha via signIn + token
-
-          // Tenta signin para obter o idToken e UID
           const resSignin = await fetch(
             `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${auth.app.options.apiKey}`,
             {
@@ -580,25 +577,16 @@ function GerenciarUsuarios({ usuarioAtual }) {
           );
           const dataSignin = await resSignin.json();
 
-          let localId = null;
-
-          if (!dataSignin.error) {
-            // Conseguiu fazer login com a senha fornecida — reutiliza o UID
-            localId = dataSignin.localId;
-          } else {
-            // Senha diferente — atualiza a senha via sendPasswordReset não é suficiente.
-            // Tentamos atualizar via Admin não disponível no client.
-            // Orientamos o usuário a usar outro e-mail ou deletar via Console.
+          if (dataSignin.error) {
             toast(
-              `O e-mail "${form.email.trim()}" já está registrado com outra senha. ` +
-              `Use um e-mail diferente ou delete o usuário diretamente no Console do Firebase Authentication.`,
+              `E-mail já registrado com outra senha. Use "Alterar Senha" no usuário existente, ou use um e-mail diferente.`,
               "error"
             );
             setLoading(false);
             return;
           }
 
-          // Verifica se já existe doc no Firestore com este uid
+          const localId = dataSignin.localId;
           const jaExiste = usuarios.find(u => u.uid === localId);
           if (jaExiste) {
             toast(`Este e-mail já está ativo no sistema como "${jaExiste.nome}".`, "error");
@@ -606,39 +594,25 @@ function GerenciarUsuarios({ usuarioAtual }) {
             return;
           }
 
-          // Recria o documento Firestore (conta Auth reutilizada)
           await setDoc(doc(db, "usuarios", localId), {
-            uid: localId,
-            nome: form.nome.trim(),
-            email: form.email.trim(),
-            cargo: form.cargo,
-            criadoEm: new Date().toISOString(),
-            criadoPor: usuarioAtual?.uid,
+            uid: localId, nome: form.nome.trim(), email: form.email.trim(),
+            cargo: form.cargo, criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid,
           });
-
           toast(`Usuário ${form.nome} reativado com sucesso! ✓`);
           setForm({ nome: "", email: "", senha: "", cargo: "funcionario" });
           setModal(false);
           setLoading(false);
           return;
         }
-
-        // Outros erros do Auth
         const msgs = { "WEAK_PASSWORD": "Senha fraca (mínimo 6 caracteres).", "INVALID_EMAIL": "E-mail inválido." };
         throw new Error(msgs[dataCriar.error.message] || dataCriar.error.message);
       }
 
-      // 3) Criação bem-sucedida — salva no Firestore
       const localId = dataCriar.localId;
       await setDoc(doc(db, "usuarios", localId), {
-        uid: localId,
-        nome: form.nome.trim(),
-        email: form.email.trim(),
-        cargo: form.cargo,
-        criadoEm: new Date().toISOString(),
-        criadoPor: usuarioAtual?.uid,
+        uid: localId, nome: form.nome.trim(), email: form.email.trim(),
+        cargo: form.cargo, criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid,
       });
-
       toast(`Usuário ${form.nome} criado! ✓`);
       setForm({ nome: "", email: "", senha: "", cargo: "funcionario" });
       setModal(false);
@@ -649,9 +623,62 @@ function GerenciarUsuarios({ usuarioAtual }) {
     }
   }
 
+  // ── ALTERAR SENHA ──
+  // Faz login temporário com a senha atual para obter o idToken,
+  // depois atualiza a senha via API do Firebase.
+  async function alterarSenha(e) {
+    e.preventDefault();
+    if (!formSenha.senhaAtual) return toast("Informe a senha atual.", "error");
+    if (formSenha.senhaNova.length < 6) return toast("Nova senha deve ter mínimo 6 caracteres.", "error");
+    if (formSenha.senhaNova !== formSenha.confirmar) return toast("As senhas não conferem.", "error");
+    if (!modalSenha) return;
+
+    setLoadingSenha(true);
+    try {
+      // 1) Faz login com a senha atual para obter o idToken
+      const resLogin = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${auth.app.options.apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: modalSenha.email, password: formSenha.senhaAtual, returnSecureToken: true }),
+        }
+      );
+      const dataLogin = await resLogin.json();
+
+      if (dataLogin.error) {
+        const msgs = {
+          "INVALID_PASSWORD": "Senha atual incorreta.",
+          "INVALID_LOGIN_CREDENTIALS": "Senha atual incorreta.",
+          "TOO_MANY_ATTEMPTS_TRY_LATER": "Muitas tentativas. Tente mais tarde.",
+        };
+        throw new Error(msgs[dataLogin.error.message] || "Senha atual incorreta.");
+      }
+
+      // 2) Atualiza a senha usando o idToken obtido
+      const resUpdate = await fetch(
+        `https://identitytoolkit.googleapis.com/v1/accounts:update?key=${auth.app.options.apiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken: dataLogin.idToken, password: formSenha.senhaNova, returnSecureToken: true }),
+        }
+      );
+      const dataUpdate = await resUpdate.json();
+
+      if (dataUpdate.error) throw new Error("Erro ao atualizar senha: " + dataUpdate.error.message);
+
+      toast(`Senha de "${modalSenha.nome}" alterada com sucesso! ✓`);
+      setModalSenha(null);
+      setFormSenha({ senhaAtual: "", senhaNova: "", confirmar: "" });
+    } catch (err) {
+      toast(err.message || "Erro ao alterar senha.", "error");
+    } finally {
+      setLoadingSenha(false);
+    }
+  }
+
   // ── REMOVER USUÁRIO ──
-  // Remove apenas do Firestore. O registro no Firebase Auth permanece,
-  // mas ao tentar recadastrar com a mesma senha, o sistema fará o reaproveitamento automático.
   async function confirmarRemover() {
     if (!confirmRemover) return;
     await deleteDoc(doc(db, "usuarios", confirmRemover.id));
@@ -666,10 +693,10 @@ function GerenciarUsuarios({ usuarioAtual }) {
         <button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="plus" />Novo Usuário</button>
       </div>
 
-      {/* Aviso explicativo */}
       <div className="info-box" style={{ marginBottom: 16 }}>
         💡 <strong>Dica:</strong> Ao remover um usuário e precisar recadastrá-lo com o mesmo e-mail,
         use <strong>exatamente a mesma senha</strong> e o sistema reativará o acesso automaticamente.
+        Para trocar a senha, use o botão <strong>🔑 Alterar Senha</strong>.
       </div>
 
       <div className="card"><div className="card-body">
@@ -698,12 +725,20 @@ function GerenciarUsuarios({ usuarioAtual }) {
                     </span>
                     {u.uid === usuarioAtual?.uid
                       ? <span style={{ fontSize: 11, color: "var(--text2)", padding: "4px 8px", borderRadius: 99, background: "var(--surface3)" }}>Você</span>
-                      : <button
-                          className="btn btn-sm btn-danger"
-                          onClick={() => setConfirmRemover({ id: u.id, uid: u.uid, nome: u.nome })}
-                        >
-                          <Icon name="trash" size={13} />Remover
-                        </button>
+                      : <div style={{ display: "flex", gap: 6 }}>
+                          <button
+                            className="btn btn-sm btn-info"
+                            onClick={() => { setModalSenha(u); setFormSenha({ senhaAtual: "", senhaNova: "", confirmar: "" }); setShowSenhas(false); }}
+                          >
+                            🔑 Alterar Senha
+                          </button>
+                          <button
+                            className="btn btn-sm btn-danger"
+                            onClick={() => setConfirmRemover({ id: u.id, uid: u.uid, nome: u.nome })}
+                          >
+                            <Icon name="trash" size={13} />Remover
+                          </button>
+                        </div>
                     }
                   </div>
                 </div>
@@ -735,6 +770,48 @@ function GerenciarUsuarios({ usuarioAtual }) {
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
             <button type="submit" className="btn btn-primary" disabled={loading}>{loading ? "Processando..." : "Criar"}</button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Modal alterar senha */}
+      <Modal open={!!modalSenha} onClose={() => { setModalSenha(null); setFormSenha({ senhaAtual: "", senhaNova: "", confirmar: "" }); }} title={`Alterar Senha — ${modalSenha?.nome || ""}`}>
+        <div className="warn-box" style={{ marginBottom: 16 }}>
+          🔑 Informe a senha <strong>atual</strong> do usuário e a nova senha desejada.
+        </div>
+        <form onSubmit={alterarSenha}>
+          <div className="form-grid" style={{ gap: 14 }}>
+            <div className="input-group">
+              <label className="input-label">Senha Atual</label>
+              <div style={{ position: "relative" }}>
+                <input className="input" type={showSenhas ? "text" : "password"} value={formSenha.senhaAtual}
+                  onChange={e => setSenha("senhaAtual", e.target.value)} placeholder="Senha atual do usuário"
+                  style={{ paddingRight: 40 }} />
+                <button type="button" onClick={() => setShowSenhas(s => !s)}
+                  style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text2)", cursor: "pointer" }}>
+                  <Icon name={showSenhas ? "eyeoff" : "eye"} size={16} />
+                </button>
+              </div>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Nova Senha</label>
+              <input className="input" type={showSenhas ? "text" : "password"} value={formSenha.senhaNova}
+                onChange={e => setSenha("senhaNova", e.target.value)} placeholder="Mínimo 6 caracteres" />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Confirmar Nova Senha</label>
+              <input className="input" type={showSenhas ? "text" : "password"} value={formSenha.confirmar}
+                onChange={e => setSenha("confirmar", e.target.value)} placeholder="Repita a nova senha"
+                style={formSenha.confirmar && formSenha.confirmar !== formSenha.senhaNova ? { borderColor: "var(--red)" } : {}} />
+              {formSenha.confirmar && formSenha.confirmar !== formSenha.senhaNova &&
+                <span style={{ fontSize: 11, color: "var(--red)" }}>As senhas não conferem</span>}
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setModalSenha(null)}>Cancelar</button>
+            <button type="submit" className="btn btn-primary" disabled={loadingSenha}>
+              {loadingSenha ? "Alterando..." : "Salvar Nova Senha"}
+            </button>
           </div>
         </form>
       </Modal>
