@@ -29,7 +29,9 @@ function formatBRL(v) {
 
 function formatData(iso) {
   if (!iso) return "";
-  return new Date(iso).toLocaleDateString("pt-BR");
+  // Força interpretação como data local (sem conversão UTC)
+  const partes = iso.slice(0, 10).split("-");
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
 }
 
 // ✅ FIX 1: Retorna a data local no formato YYYY-MM-DD sem conversão UTC
