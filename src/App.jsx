@@ -304,6 +304,17 @@ const CSS = `
   .info-box { background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--text2); }
   .warn-box { background: rgba(245,166,35,0.07); border: 1px solid rgba(245,166,35,0.25); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--yellow); }
 
+  .compra-card { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 16px 18px; display: flex; align-items: flex-start; gap: 14px; transition: box-shadow 0.15s; }
+  .compra-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.25); }
+  .compra-card-info { flex: 1; min-width: 0; }
+  .compra-card-fornecedor { font-size: 14px; font-weight: 700; color: var(--text); }
+  .compra-card-valor { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); margin-top: 2px; }
+  .compra-card-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
+  .compra-card-obs { font-size: 12px; color: var(--text2); margin-top: 6px; font-style: italic; border-left: 2px solid var(--border2); padding-left: 8px; }
+  .compra-card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+  .compras-pendentes-list { display: flex; flex-direction: column; gap: 10px; }
+  .badge-purple { background: rgba(167,139,250,0.12); color: #a78bfa; }
+
   @media (max-width: 1200px) {
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
     .page { padding: 28px 28px; }
@@ -350,6 +361,8 @@ const Icon = ({ name, size = 16 }) => {
     chevronRight: <path d="M10 17l5-5-5-5v10z" fill="currentColor"/>,
     variant: <path d="M17 12h-5v5h5v-5zM16 1v2H8V1H6v2H5c-1.11 0-1.99.9-1.99 2L3 19c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2h-1V1h-2zm3 18H5V8h14v11z" fill="currentColor"/>,
     refresh: <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" fill="currentColor"/>,
+    cart: <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96C5 16.1 6.9 18 9 18h12v-2H9.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63H19c.75 0 1.41-.41 1.75-1.03l3.58-6.49A1 1 0 0 0 23.43 5H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z" fill="currentColor"/>,
+    inbox: <path d="M19 3H4.99C3.89 3 3 3.9 3 5L3 19c0 1.1.89 2 1.99 2H19c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 12h-4c0 1.66-1.34 3-3 3s-3-1.34-3-3H4.99V5H19v10z" fill="currentColor"/>,
   };
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -850,6 +863,7 @@ function RelatorioPDF({ dados }) {
   const transacoes = dados.transacoes || [];
   const produtos = dados.produtos || [];
   const variantesProduto = dados.variantesProduto || [];
+  const compras = dados.compras || [];
 
   const totalReceitas = transacoes.filter(t => t.tipo === "venda").reduce((s, t) => s + t.valor, 0);
   const totalDespesas = transacoes.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
@@ -863,6 +877,10 @@ function RelatorioPDF({ dados }) {
   const receitasMes = transacoesFiltradas.filter(t => t.tipo === "venda").reduce((s, t) => s + t.valor, 0);
   const despesasMes = transacoesFiltradas.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
   const saldoMes = receitasMes - despesasMes;
+
+  const comprasMes = useMemo(() => compras.filter(c => c.data && c.data.startsWith(mes)).sort((a, b) => new Date(b.data) - new Date(a.data)), [compras, mes]);
+  const totalComprasMes = comprasMes.reduce((s, c) => s + c.valor, 0);
+  const comprasPendentesMes = comprasMes.filter(c => c.status === "aguardando").length;
 
   // ✅ FIX 2: % lucro sobre despesas do mês
   const percentLucroDespesa = despesasMes > 0
@@ -897,12 +915,14 @@ function RelatorioPDF({ dados }) {
       const varStr = vars.length > 0 ? vars.map(v => `${v.label}: ${v.estoque}`).join(", ") : "—";
       return `<tr><td>${p.nome}</td><td style="text-align:center">${estoqueTotal}</td><td style="font-size:10px;color:#666">${varStr}</td><td>${formatBRL(p.precoVenda)}</td><td style="text-align:center">${margem}%</td></tr>`;
     }).join("");
+    const linhasCompras = comprasMes.map(c => `<tr><td>${formatData(c.data)}</td><td>${c.fornecedor}</td><td style="text-align:right;font-weight:600;color:#e8b84b">${formatBRL(c.valor)}</td><td style="color:${c.status === "recebido" ? "#22c55e" : "#f5a623"}">${c.status === "recebido" ? "✓ Recebido" : "⏳ Aguardando"}</td><td style="font-size:10px;color:#666">${c.observacoes || "—"}</td></tr>`).join("");
 
     const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório FitMGwear</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;padding:32px}h1{font-size:26px;font-weight:900;letter-spacing:3px;color:#e8b84b}h2{font-size:14px;font-weight:700;text-transform:uppercase;margin:24px 0 10px;color:#333;border-bottom:2px solid #e8b84b;padding-bottom:4px}.header{display:flex;justify-content:space-between;margin-bottom:24px;border-bottom:1px solid #ddd;padding-bottom:16px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.stat{padding:14px;border-radius:8px;border:1px solid #ddd}.stat-label{font-size:10px;text-transform:uppercase;color:#666;margin-bottom:4px}.stat-value{font-size:20px;font-weight:900}.green{color:#22c55e}.red{color:#ef4444}.blue{color:#3b82f6}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{text-align:left;padding:8px;font-size:10px;text-transform:uppercase;background:#f5f5f5;border-bottom:1px solid #ddd;color:#666}td{padding:8px;border-bottom:1px solid #eee;font-size:11px}.footer{margin-top:32px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:12px}</style></head><body>
 <div class="header"><div><h1>FITMGWEAR</h1><div style="color:#666;margin-top:2px">Relatório — ${nomeMes}</div></div><div style="text-align:right;font-size:11px;color:#666">Gerado: ${new Date().toLocaleDateString("pt-BR")}</div></div>
 <h2>📊 Resumo do Mês</h2><div class="stats"><div class="stat"><div class="stat-label">Receitas</div><div class="stat-value green">${formatBRL(receitasMes)}</div></div><div class="stat"><div class="stat-label">Despesas</div><div class="stat-value red">${formatBRL(despesasMes)}</div></div><div class="stat"><div class="stat-label">Saldo</div><div class="stat-value ${saldoMes >= 0 ? "blue" : "red"}">${formatBRL(saldoMes)}</div></div><div class="stat"><div class="stat-label">Lucro / Despesa</div><div class="stat-value" style="color:${pctColor}">${pctPDF}</div><div style="font-size:10px;color:#888;margin-top:4px">saldo ÷ despesas</div></div></div>
 ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:10px;font-size:11px;color:#92400e;margin-bottom:16px">⚠️ Estoque crítico: ${produtosAbaixo.map(p => `${p.nome} (${p.estoque} un.)`).join(", ")}</div>` : ""}
 <h2>💳 Transações (${transacoesFiltradas.length})</h2>${transacoesFiltradas.length === 0 ? "<p style='color:#aaa'>Nenhuma transação.</p>" : `<table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>${linhas}</tbody></table>`}
+<h2>🛒 Compras de Mercadoria (${comprasMes.length}) — Total: ${formatBRL(totalComprasMes)}</h2>${comprasMes.length === 0 ? "<p style='color:#aaa'>Nenhuma compra neste mês.</p>" : `<table><thead><tr><th>Data</th><th>Fornecedor</th><th style="text-align:right">Valor</th><th>Status</th><th>Observações</th></tr></thead><tbody>${linhasCompras}</tbody></table>`}
 <h2>📦 Estoque (${produtos.length} produtos)</h2>${produtos.length === 0 ? "<p style='color:#aaa'>Nenhum produto.</p>" : `<table><thead><tr><th>Produto</th><th style="text-align:center">Total</th><th>Variantes</th><th>Venda</th><th style="text-align:center">Margem</th></tr></thead><tbody>${linhasProd}</tbody></table>`}
 <div class="footer">FitMGwear Sistema de Gestão</div></body></html>`;
 
@@ -933,6 +953,13 @@ ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #
                   {percentLucroDespesa}{percentLucroDespesa !== "∞" ? "%" : ""}
                 </span>
               </div>
+              {comprasMes.length > 0 && (
+                <div style={{ fontSize: 13 }}>
+                  <span style={{ color: "var(--text2)" }}>Compras: </span>
+                  <span style={{ color: "#a78bfa", fontWeight: 700 }}>{formatBRL(totalComprasMes)}</span>
+                  {comprasPendentesMes > 0 && <span style={{ color: "var(--yellow)", fontSize: 11, marginLeft: 6 }}>({comprasPendentesMes} aguardando)</span>}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -963,12 +990,16 @@ ${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #
 // ─────────────────────────────────────────────
 function Dashboard({ dados }) {
   const transacoes = dados.transacoes || [];
+  const compras = dados.compras || [];
   // ✅ FIX 1: usa hojeLocal() em vez de toISOString() para comparar datas
   const hojeISO = hojeLocal();
   const totalReceitas = transacoes.filter(t => t.tipo === "venda").reduce((s, t) => s + t.valor, 0);
   const totalDespesas = transacoes.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
   const saldo = totalReceitas - totalDespesas;
   const hojeCount = transacoes.filter(t => t.data && t.data.slice(0, 10) === hojeISO).length;
+
+  const comprasPendentes = compras.filter(c => c.status === "aguardando");
+  const totalPendente = comprasPendentes.reduce((s, c) => s + c.valor, 0);
 
   const produtosAbaixo = [];
   (dados.produtos || []).forEach(p => {
@@ -997,6 +1028,19 @@ function Dashboard({ dados }) {
             <div style={{ fontSize: 24 }}>⚠️</div>
             <div><div style={{ fontWeight: 700, fontSize: 14, color: "var(--yellow)" }}>Estoque crítico</div>
               <div style={{ fontSize: 13, color: "var(--text2)" }}>{produtosAbaixo.join(", ")}</div></div>
+          </div>
+        </div>
+      )}
+      {comprasPendentes.length > 0 && (
+        <div className="card" style={{ marginBottom: 20, borderColor: "rgba(167,139,250,0.3)", background: "rgba(167,139,250,0.04)" }}>
+          <div className="card-body" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{ fontSize: 24 }}>🛒</div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: "#a78bfa" }}>{comprasPendentes.length} compra{comprasPendentes.length > 1 ? "s" : ""} aguardando recebimento</div>
+                <div style={{ fontSize: 13, color: "var(--text2)" }}>Investimento pendente: <strong style={{ color: "var(--accent)" }}>{formatBRL(totalPendente)}</strong></div>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -1690,6 +1734,135 @@ function Categorias({ dados, onAdicionar, onRemover }) {
 }
 
 // ─────────────────────────────────────────────
+// COMPRAS
+// ─────────────────────────────────────────────
+function Compras({ compras, onAdicionar, onReceber, onRemover }) {
+  const [modal, setModal] = useState(false);
+  const [aba, setAba] = useState("pendentes"); // pendentes | historico
+  const [confirmId, setConfirmId] = useState(null);
+  const [form, setForm] = useState({ fornecedor: "", valor: "", data: hojeLocal(), observacoes: "" });
+
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+
+  function submit(e) {
+    e.preventDefault();
+    if (!form.fornecedor.trim()) return toast("Informe o fornecedor", "error");
+    if (!form.valor || parseFloat(form.valor) <= 0) return toast("Valor inválido", "error");
+    onAdicionar({ fornecedor: form.fornecedor.trim(), valor: parseFloat(form.valor), data: form.data || hojeLocal(), observacoes: form.observacoes.trim(), status: "aguardando" });
+    setForm({ fornecedor: "", valor: "", data: hojeLocal(), observacoes: "" });
+    setModal(false);
+    toast("Compra registrada! ✓");
+  }
+
+  const pendentes = compras.filter(c => c.status === "aguardando").sort((a, b) => new Date(b.data) - new Date(a.data));
+  const historico = compras.filter(c => c.status === "recebido").sort((a, b) => new Date(b.dataRecebimento || b.data) - new Date(a.dataRecebimento || a.data));
+  const totalPendente = pendentes.reduce((s, c) => s + c.valor, 0);
+
+  return (
+    <div>
+      <div className="page-header">
+        <div>
+          <h1 className="page-title">Compras</h1>
+          <p className="page-sub">Pedidos de mercadoria — não afeta saldo nem estoque</p>
+        </div>
+        <button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="plus" />Nova Compra</button>
+      </div>
+
+      {pendentes.length > 0 && (
+        <div className="card" style={{ marginBottom: 20, borderColor: "rgba(167,139,250,0.25)", background: "rgba(167,139,250,0.04)" }}>
+          <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ fontSize: 24 }}>🛒</div>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: "#a78bfa" }}>{pendentes.length} pedido{pendentes.length > 1 ? "s" : ""} aguardando</div>
+              <div style={{ fontSize: 13, color: "var(--text2)" }}>Total investido: <strong style={{ color: "var(--accent)" }}>{formatBRL(totalPendente)}</strong></div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+        <button className={`btn btn-sm ${aba === "pendentes" ? "btn-primary" : "btn-secondary"}`} onClick={() => setAba("pendentes")}>
+          🕐 Aguardando {pendentes.length > 0 && `(${pendentes.length})`}
+        </button>
+        <button className={`btn btn-sm ${aba === "historico" ? "btn-primary" : "btn-secondary"}`} onClick={() => setAba("historico")}>
+          ✅ Recebidos {historico.length > 0 && `(${historico.length})`}
+        </button>
+      </div>
+
+      {aba === "pendentes" && (
+        <div className="compras-pendentes-list">
+          {pendentes.length === 0
+            ? <div className="empty-state"><div className="empty-icon">🛒</div><div className="empty-text">Nenhuma compra pendente</div></div>
+            : pendentes.map(c => (
+              <div key={c.id} className="compra-card">
+                <div style={{ fontSize: 28, flexShrink: 0 }}>📦</div>
+                <div className="compra-card-info">
+                  <div className="compra-card-fornecedor">{c.fornecedor}</div>
+                  <div className="compra-card-valor">{formatBRL(c.valor)}</div>
+                  <div className="compra-card-meta">📅 Pedido em {formatData(c.data)}</div>
+                  {c.observacoes && <div className="compra-card-obs">{c.observacoes}</div>}
+                </div>
+                <div className="compra-card-actions">
+                  <button className="btn btn-sm btn-success" onClick={() => onReceber(c.id)} title="Marcar como recebido">
+                    <Icon name="check" size={13} />Recebido
+                  </button>
+                  <button className="btn-icon danger" onClick={() => setConfirmId(c.id)} title="Remover"><Icon name="trash" /></button>
+                </div>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {aba === "historico" && (
+        <div className="card">
+          <div className="table-wrap">
+            {historico.length === 0
+              ? <div className="empty-state"><div className="empty-icon">📋</div><div className="empty-text">Nenhum recebimento registrado</div></div>
+              : <table>
+                  <thead><tr><th>Pedido em</th><th>Fornecedor</th><th>Recebido em</th><th style={{ textAlign: "right" }}>Valor</th><th>Obs.</th><th></th></tr></thead>
+                  <tbody>{historico.map(c => (
+                    <tr key={c.id}>
+                      <td style={{ color: "var(--text2)", whiteSpace: "nowrap" }}>{formatData(c.data)}</td>
+                      <td style={{ fontWeight: 600 }}>{c.fornecedor}</td>
+                      <td style={{ whiteSpace: "nowrap" }}><span className="badge badge-green">✓ {formatData(c.dataRecebimento)}</span></td>
+                      <td style={{ fontWeight: 700, color: "var(--accent)", textAlign: "right", whiteSpace: "nowrap" }}>{formatBRL(c.valor)}</td>
+                      <td style={{ color: "var(--text2)", fontSize: 12 }}>{c.observacoes || "—"}</td>
+                      <td><button className="btn-icon danger" onClick={() => setConfirmId(c.id)}><Icon name="trash" /></button></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+            }
+          </div>
+        </div>
+      )}
+
+      <Modal open={modal} onClose={() => { setModal(false); setForm({ fornecedor: "", valor: "", data: hojeLocal(), observacoes: "" }); }} title="Nova Compra">
+        <form onSubmit={submit}>
+          <div className="form-grid" style={{ gap: 14 }}>
+            <div className="input-group"><label className="input-label">Fornecedor *</label><input className="input" placeholder="Ex: Fornecedor SP" value={form.fornecedor} onChange={e => set("fornecedor", e.target.value)} /></div>
+            <div className="input-group"><label className="input-label">Valor (R$) *</label><input className="input" type="number" step="0.01" min="0" placeholder="0,00" value={form.valor} onChange={e => set("valor", e.target.value)} /></div>
+            <div className="input-group"><label className="input-label">Data do Pedido</label><input className="input" type="date" value={form.data} onChange={e => set("data", e.target.value)} /></div>
+            <div className="input-group"><label className="input-label">Observações</label><textarea className="input" value={form.observacoes} onChange={e => set("observacoes", e.target.value)} placeholder="Ex: 10 camisetas dry-fit, 5 shorts..." style={{ minHeight: 70 }} /></div>
+          </div>
+          <div className="warn-box" style={{ marginTop: 14 }}>
+            🛒 Esta compra <strong>não afeta o saldo nem o estoque</strong>. Quando a mercadoria chegar, marque como "Recebido" e atualize o estoque manualmente.
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
+            <button type="submit" className="btn btn-primary"><Icon name="check" />Registrar Compra</button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog open={!!confirmId} title="Remover Compra?" text="A compra será removida do sistema." danger
+        onConfirm={() => { onRemover(confirmId); setConfirmId(null); toast("Compra removida"); }}
+        onCancel={() => setConfirmId(null)} />
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
 // SIDEBAR
 // ─────────────────────────────────────────────
 const NAV_BASE = [
@@ -1698,6 +1871,7 @@ const NAV_BASE = [
   { id: "despesa", label: "Nova Despesa", icon: "expense", group: "Principal" },
   { id: "transacoes", label: "Transações", icon: "categories", group: "Dados" },
   { id: "estoque", label: "Estoque", icon: "stock", group: "Dados" },
+  { id: "compras", label: "Compras", icon: "cart", group: "Dados" },
   { id: "clientes", label: "Clientes", icon: "clients", group: "Dados" },
   { id: "categorias", label: "Categorias", icon: "categories", group: "Dados" },
   { id: "relatorio", label: "Relatório PDF", icon: "pdf", group: "Dados" },
@@ -1807,8 +1981,9 @@ export default function App() {
   const [clientes, loadingC] = useCollection("clientes");
   const [categorias, loadingCat] = useCollection("categorias");
   const [variantesProduto, loadingVP] = useCollection("variantesProduto");
+  const [compras, loadingCo] = useCollection("compras");
 
-  const loading = loadingT || loadingP || loadingC || loadingCat || loadingVP;
+  const loading = loadingT || loadingP || loadingC || loadingCat || loadingVP || loadingCo;
 
   useEffect(() => {
     if (!loadingCat && categorias.length === 0) {
@@ -1816,9 +1991,17 @@ export default function App() {
     }
   }, [loadingCat, categorias.length]);
 
-  const dados = { transacoes, produtos, clientes, categorias, variantesProduto };
+  const dados = { transacoes, produtos, clientes, categorias, variantesProduto, compras };
 
   async function handleLogout() { await signOut(auth); setPage("painel"); }
+
+  async function adicionarCompra(c) { const id = uid(); await setDoc(doc(db, "compras", id), { ...c, id, criadoEm: new Date().toISOString() }); }
+  async function receberCompra(id) {
+    const c = compras.find(x => x.id === id);
+    if (c) await setDoc(doc(db, "compras", id), { ...c, status: "recebido", dataRecebimento: hojeLocal() });
+    toast("Marcado como recebido! ✓");
+  }
+  async function removerCompra(id) { await deleteDoc(doc(db, "compras", id)); }
 
   async function adicionarTransacao(t) {
     const id = uid();
@@ -1888,6 +2071,7 @@ export default function App() {
     if (page === "clientes") return <Clientes dados={dados} onAdicionar={adicionarCliente} onRemover={removerCliente} onAtualizar={atualizarCliente} />;
     if (page === "categorias") return <Categorias dados={dados} onAdicionar={adicionarCategoria} onRemover={removerCategoria} />;
     if (page === "relatorio") return <RelatorioPDF dados={dados} />;
+    if (page === "compras") return <Compras compras={compras} onAdicionar={adicionarCompra} onReceber={receberCompra} onRemover={removerCompra} />;
     if (page === "usuarios" && isDono) return <GerenciarUsuarios usuarioAtual={usuario} />;
   }
 
