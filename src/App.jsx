@@ -1087,30 +1087,36 @@ function Dashboard({ dados }) {
 }
 
 // ─────────────────────────────────────────────
-// FORM TRANSAÇÃO
+// SELETOR DE ITEM (produto + variante + qtd) usado no carrinho de venda
 // ─────────────────────────────────────────────
-function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
-  const [form, setForm] = useState({ descricao: "", valor: "", categoria: "", cliente: "", data: hojeLocal(), observacoes: "", produtoId: "", varianteId: "", quantidade: "1" });
+function SeletorItemVenda({ dados, onAdicionarItem, estoqueReservado }) {
+  const [produtoId, setProdutoId] = useState("");
   const [tamSel, setTamSel] = useState("");
   const [corSel, setCorSel] = useState("");
+  const [quantidade, setQuantidade] = useState("1");
 
-  const categorias = (dados.categorias || []).filter(c => tipo === "venda" ? c.tipo === "receita" : c.tipo === "despesa");
   const produtos = dados.produtos || [];
   const variantesProduto = dados.variantesProduto || [];
-  const produtoSelecionado = produtos.find(p => p.id === form.produtoId);
 
-  const variantesDisponiveis = useMemo(() => {
-    if (!form.produtoId) return [];
-    return variantesProduto.filter(v => v.produtoPaiId === form.produtoId);
-  }, [form.produtoId, variantesProduto]);
+  const produtosDisponiveis = produtos.filter(p => {
+    const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
+    if (vars.length > 0) return vars.some(v => {
+      const reservado = estoqueReservado[v.id] || 0;
+      return (v.estoque - reservado) > 0;
+    });
+    const reservado = estoqueReservado[p.id] || 0;
+    return (p.quantidadeEstoque - reservado) > 0;
+  });
 
-  const temVariantes = variantesDisponiveis.length > 0;
+  const produtoSel = produtos.find(p => p.id === produtoId);
+  const variantesDisp = useMemo(() => produtoId ? variantesProduto.filter(v => v.produtoPaiId === produtoId) : [], [produtoId, variantesProduto]);
+  const temVariantes = variantesDisp.length > 0;
 
   const { tamanhos, coresParaTam } = useMemo(() => {
     if (!temVariantes) return { tamanhos: [], coresParaTam: {} };
     const tamSet = new Set();
     const coresMap = {};
-    variantesDisponiveis.forEach(v => {
+    variantesDisp.forEach(v => {
       const partes = v.label.split("/").map(s => s.trim());
       if (partes.length >= 2) {
         const [tam, ...corParts] = partes; const cor = corParts.join("/");
@@ -1122,9 +1128,9 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
       }
     });
     return { tamanhos: [...tamSet], coresParaTam: coresMap };
-  }, [variantesDisponiveis, temVariantes]);
+  }, [variantesDisp, temVariantes]);
 
-  const varianteSelecionada = useMemo(() => {
+  const varianteSel = useMemo(() => {
     if (!tamSel) return null;
     const opcoes = coresParaTam[tamSel] || [];
     if (opcoes.length === 1 && opcoes[0].cor === "") return opcoes[0].variante;
@@ -1132,131 +1138,280 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
     return opcoes.find(o => o.cor === corSel)?.variante || null;
   }, [tamSel, corSel, coresParaTam]);
 
-  useEffect(() => {
-    if (varianteSelecionada) {
-      setForm(p => ({ ...p, varianteId: varianteSelecionada.id, descricao: produtoSelecionado ? `${produtoSelecionado.nome} — ${varianteSelecionada.label}` : varianteSelecionada.label, valor: produtoSelecionado ? (produtoSelecionado.precoVenda * (parseInt(p.quantidade) || 1)).toFixed(2) : p.valor }));
-    } else { setForm(p => ({ ...p, varianteId: "" })); }
-  }, [varianteSelecionada]);
+  const estoqueDisp = useMemo(() => {
+    if (varianteSel) return varianteSel.estoque - (estoqueReservado[varianteSel.id] || 0);
+    if (!temVariantes && produtoSel) return produtoSel.quantidadeEstoque - (estoqueReservado[produtoSel.id] || 0);
+    return 0;
+  }, [varianteSel, temVariantes, produtoSel, estoqueReservado]);
 
-  const estoqueDisponivel = varianteSelecionada ? varianteSelecionada.estoque : (!temVariantes && produtoSelecionado ? produtoSelecionado.quantidadeEstoque : 0);
-  const valorVenda = parseFloat(form.valor) || 0;
-  const custoUnitario = produtoSelecionado ? produtoSelecionado.precoCompra : 0;
-  const qtd = parseInt(form.quantidade) || 1;
-  const custoTotal = custoUnitario * qtd;
-  const lucro = valorVenda - custoTotal;
-  const margem = custoTotal > 0 ? (lucro / custoTotal * 100) : 0;
-
-  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
+  const qtd = parseInt(quantidade) || 1;
+  const precoUnit = produtoSel ? produtoSel.precoVenda : 0;
+  const custoUnit = produtoSel ? produtoSel.precoCompra : 0;
+  const subtotal = precoUnit * qtd;
+  const lucroItem = (precoUnit - custoUnit) * qtd;
 
   function handleProduto(id) {
-    setForm(p => ({ ...p, produtoId: id, varianteId: "", descricao: "", valor: "" }));
-    setTamSel(""); setCorSel("");
-    if (id) { const p = produtos.find(x => x.id === id); if (p) setForm(prev => ({ ...prev, produtoId: id, descricao: p.nome, valor: p.precoVenda.toFixed(2) })); }
+    setProdutoId(id); setTamSel(""); setCorSel(""); setQuantidade("1");
   }
 
-  function handleQtd(q) {
-    set("quantidade", q);
-    const n = parseInt(q) || 1;
-    if (produtoSelecionado) { set("valor", (produtoSelecionado.precoVenda * n).toFixed(2)); if (n > estoqueDisponivel) toast(`⚠️ Disponível: ${estoqueDisponivel} un.`, "error"); }
+  function podeAdicionar() {
+    if (!produtoSel) return false;
+    if (temVariantes && !varianteSel) return false;
+    if (qtd < 1 || qtd > estoqueDisp) return false;
+    return true;
   }
 
+  function adicionar() {
+    if (!podeAdicionar()) {
+      if (!produtoSel) return toast("Selecione um produto", "error");
+      if (temVariantes && !varianteSel) return toast("Selecione tamanho e cor", "error");
+      if (qtd > estoqueDisp) return toast(`Estoque insuficiente! Disponível: ${estoqueDisp}`, "error");
+      return;
+    }
+    const label = varianteSel ? `${produtoSel.nome} — ${varianteSel.label}` : produtoSel.nome;
+    onAdicionarItem({
+      id: uid(),
+      produtoId: produtoSel.id,
+      varianteId: varianteSel ? varianteSel.id : null,
+      label,
+      quantidade: qtd,
+      precoUnit,
+      custoUnit,
+      subtotal: precoUnit * qtd,
+    });
+    // reset seletor
+    setProdutoId(""); setTamSel(""); setCorSel(""); setQuantidade("1");
+    toast("Item adicionado ao carrinho ✓");
+  }
+
+  return (
+    <div style={{ background: "var(--surface2)", border: "1px solid var(--border2)", borderRadius: "var(--radius)", padding: 18, marginBottom: 20 }}>
+      <div style={{ fontWeight: 700, fontSize: 13, color: "var(--text2)", textTransform: "uppercase", letterSpacing: "0.6px", marginBottom: 14 }}>
+        ➕ Adicionar Item ao Carrinho
+      </div>
+
+      <div className="form-grid form-grid-2" style={{ marginBottom: temVariantes && produtoId ? 0 : 0 }}>
+        <div className="input-group">
+          <label className="input-label">Produto</label>
+          <select className="input" value={produtoId} onChange={e => handleProduto(e.target.value)}>
+            <option value="">Selecionar produto...</option>
+            {produtosDisponiveis.map(p => {
+              const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
+              const est = vars.length > 0
+                ? vars.reduce((s, v) => s + Math.max(0, v.estoque - (estoqueReservado[v.id] || 0)), 0)
+                : Math.max(0, p.quantidadeEstoque - (estoqueReservado[p.id] || 0));
+              return <option key={p.id} value={p.id}>{p.nome} (Estq: {est})</option>;
+            })}
+          </select>
+        </div>
+        <div className="input-group">
+          <label className="input-label">Quantidade {estoqueDisp > 0 ? `(máx: ${estoqueDisp})` : ""}</label>
+          <input className="input" type="number" min="1" max={estoqueDisp || undefined}
+            value={quantidade} onChange={e => setQuantidade(e.target.value)}
+            style={qtd > estoqueDisp && estoqueDisp > 0 ? { borderColor: "var(--red)" } : {}} />
+        </div>
+      </div>
+
+      {/* Seletor de variantes */}
+      {produtoId && temVariantes && (
+        <div className="variante-grade-section">
+          <div className="variante-grade-label">Tamanho</div>
+          <div className="variante-grade-chips">
+            {tamanhos.map(tam => {
+              const opcoes = coresParaTam[tam] || [];
+              const estTam = opcoes.reduce((s, o) => s + Math.max(0, o.variante.estoque - (estoqueReservado[o.variante.id] || 0)), 0);
+              return (
+                <div key={tam} className={`variante-chip ${tamSel === tam ? "active" : ""} ${estTam === 0 ? "disabled" : ""}`}
+                  onClick={() => estTam > 0 && (setTamSel(tam), setCorSel(""))}>
+                  {tam}
+                  {estTam <= 5 && estTam > 0 && <span className="variante-chip-estoque">{estTam}</span>}
+                  {estTam === 0 && <span className="variante-chip-estoque zero">0</span>}
+                </div>
+              );
+            })}
+          </div>
+          {tamSel && coresParaTam[tamSel]?.[0]?.cor !== "" && (
+            <div style={{ marginTop: 12 }}>
+              <div className="variante-grade-label">Cor</div>
+              <div className="variante-grade-chips">
+                {(coresParaTam[tamSel] || []).map(({ cor, variante: v }) => {
+                  const estV = Math.max(0, v.estoque - (estoqueReservado[v.id] || 0));
+                  return (
+                    <div key={cor} className={`variante-chip ${corSel === cor ? "active-cor" : ""} ${estV === 0 ? "disabled" : ""}`}
+                      onClick={() => estV > 0 && setCorSel(cor)}>
+                      {cor}
+                      {estV <= 5 && estV > 0 && <span className="variante-chip-estoque">{estV}</span>}
+                      {estV === 0 && <span className="variante-chip-estoque zero">0</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+          {varianteSel && (
+            <div className="variante-resultado" style={{ marginTop: 10 }}>
+              <span className="variante-resultado-nome">✓ {varianteSel.label}</span>
+              <span className={`badge ${estoqueDisp <= 5 ? "badge-yellow" : "badge-green"}`}>{estoqueDisp} un. disponíveis</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Preview margem */}
+      {produtoSel && subtotal > 0 && (!temVariantes || varianteSel) && (
+        <div className="margem-preview" style={{ marginTop: 14 }}>
+          <div className="margem-item"><span className="margem-item-label">Unit.</span><span className="margem-item-value" style={{ color: "var(--green)" }}>{formatBRL(precoUnit)}</span></div>
+          <div style={{ color: "var(--border2)", fontSize: 18 }}>×{qtd}</div>
+          <div className="margem-item"><span className="margem-item-label">Subtotal</span><span className="margem-item-value" style={{ color: "var(--green)" }}>{formatBRL(subtotal)}</span></div>
+          <div style={{ color: "var(--border2)", fontSize: 18 }}>→</div>
+          <div className="margem-item"><span className="margem-item-label">Lucro</span><span className="margem-item-value" style={{ color: lucroItem >= 0 ? "var(--green)" : "var(--red)" }}>{formatBRL(lucroItem)}</span></div>
+        </div>
+      )}
+
+      <div style={{ marginTop: 14, display: "flex", justifyContent: "flex-end" }}>
+        <button className="btn btn-success" onClick={adicionar} disabled={!podeAdicionar()}>
+          <Icon name="plus" />Adicionar ao Carrinho
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// CARRINHO DE VENDA
+// ─────────────────────────────────────────────
+function CarrinhoVenda({ dados, onSalvar, onCancelar }) {
+  const [itens, setItens] = useState([]);
+  const [meta, setMeta] = useState({ cliente: "", data: hojeLocal(), categoria: "", observacoes: "" });
+
+  const categorias = (dados.categorias || []).filter(c => c.tipo === "receita");
+
+  // controla estoque já reservado pelo carrinho para não deixar adicionar mais do que tem
+  const estoqueReservado = useMemo(() => {
+    const map = {};
+    itens.forEach(i => {
+      const key = i.varianteId || i.produtoId;
+      map[key] = (map[key] || 0) + i.quantidade;
+    });
+    return map;
+  }, [itens]);
+
+  const totalCarrinho = itens.reduce((s, i) => s + i.subtotal, 0);
+  const totalCusto = itens.reduce((s, i) => s + i.custoUnit * i.quantidade, 0);
+  const totalLucro = totalCarrinho - totalCusto;
+  const margemGeral = totalCusto > 0 ? (totalLucro / totalCusto * 100) : 0;
+
+  function removerItem(id) { setItens(p => p.filter(i => i.id !== id)); }
+
+  function fecharVenda() {
+    if (itens.length === 0) return toast("Adicione pelo menos 1 item", "error");
+    // gera um payload por item — a função onSalvar receberá array
+    const descricaoGeral = itens.map(i => `${i.label} (${i.quantidade}x)`).join(", ");
+    onSalvar({
+      itens,
+      descricao: descricaoGeral,
+      valor: totalCarrinho,
+      cliente: meta.cliente,
+      categoria: meta.categoria,
+      data: meta.data || hojeLocal(),
+      observacoes: meta.observacoes,
+    });
+  }
+
+  return (
+    <div>
+      {/* Seletor de item */}
+      <SeletorItemVenda dados={dados} onAdicionarItem={item => setItens(p => [...p, item])} estoqueReservado={estoqueReservado} />
+
+      {/* Carrinho */}
+      <div className="cart-section">
+        <div className="cart-section-title">🛒 Carrinho ({itens.length} {itens.length === 1 ? "item" : "itens"})</div>
+        {itens.length === 0
+          ? <div className="cart-empty">Nenhum item ainda. Selecione um produto acima e clique em <strong>Adicionar ao Carrinho</strong>.</div>
+          : <>
+            {itens.map(i => (
+              <div key={i.id} className="cart-item-row">
+                <span className="cart-item-name">{i.label}</span>
+                <span className="cart-item-qty">{i.quantidade}x {formatBRL(i.precoUnit)}</span>
+                <span className="cart-item-price">{formatBRL(i.subtotal)}</span>
+                <button className="btn-icon danger" onClick={() => removerItem(i.id)}><Icon name="trash" /></button>
+              </div>
+            ))}
+            <div className="cart-total-row">
+              <div>
+                <div className="cart-total-label">Total da Venda</div>
+                {totalCusto > 0 && (
+                  <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 2 }}>
+                    Lucro: <span style={{ color: totalLucro >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700 }}>{formatBRL(totalLucro)}</span>
+                    <span className={`badge ${margemGeral > 30 ? "badge-green" : margemGeral > 10 ? "badge-gold" : "badge-red"}`} style={{ marginLeft: 8, fontSize: 11 }}>{margemGeral.toFixed(0)}%</span>
+                  </div>
+                )}
+              </div>
+              <span className="cart-total-value">{formatBRL(totalCarrinho)}</span>
+            </div>
+          </>
+        }
+      </div>
+
+      {/* Dados gerais da venda */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="card-header" style={{ padding: "16px 20px 12px" }}><span className="card-title">Dados da Venda</span></div>
+        <div className="card-body">
+          <div className="form-grid form-grid-2">
+            <div className="input-group">
+              <label className="input-label">Cliente</label>
+              <select className="input" value={meta.cliente} onChange={e => setMeta(p => ({ ...p, cliente: e.target.value }))}>
+                <option value="">Nenhum</option>
+                {(dados.clientes || []).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Data</label>
+              <input className="input" type="date" value={meta.data} onChange={e => setMeta(p => ({ ...p, data: e.target.value }))} />
+            </div>
+            <div className="input-group">
+              <label className="input-label">Categoria</label>
+              <select className="input" value={meta.categoria} onChange={e => setMeta(p => ({ ...p, categoria: e.target.value }))}>
+                <option value="">Selecione...</option>
+                {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+              </select>
+            </div>
+            <div className="input-group">
+              <label className="input-label">Observações</label>
+              <input className="input" placeholder="Opcional..." value={meta.observacoes} onChange={e => setMeta(p => ({ ...p, observacoes: e.target.value }))} />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="form-actions">
+        {onCancelar && <button className="btn btn-secondary" onClick={onCancelar}>Cancelar</button>}
+        <button className="btn btn-success" onClick={fecharVenda} disabled={itens.length === 0}>
+          <Icon name="check" />
+          Finalizar Venda {itens.length > 0 && `— ${formatBRL(totalCarrinho)}`}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// FORM TRANSAÇÃO (despesas — mantido simples)
+// ─────────────────────────────────────────────
+function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
+  const [form, setForm] = useState({ descricao: "", valor: "", categoria: "", data: hojeLocal(), observacoes: "" });
+  const categorias = (dados.categorias || []).filter(c => c.tipo === "despesa");
+  function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
   function submit(e) {
     e.preventDefault();
     if (!form.descricao.trim()) return toast("Preencha a descrição", "error");
     if (!form.valor || parseFloat(form.valor) <= 0) return toast("Valor inválido", "error");
-    if (tipo === "venda" && form.produtoId) {
-      if (temVariantes && !form.varianteId) return toast("Selecione uma variante", "error");
-      if (qtd > estoqueDisponivel) return toast("Estoque insuficiente!", "error");
-    }
-    const payload = { tipo, descricao: form.descricao, valor: parseFloat(form.valor), categoria: form.categoria || "", cliente: form.cliente || "", data: form.data || hojeLocal(), observacoes: form.observacoes || "", quantidade: qtd };
-    if (form.produtoId) payload.produtoId = form.produtoId;
-    if (form.varianteId) payload.varianteId = form.varianteId;
-    onSalvar(payload);
+    onSalvar({ tipo, descricao: form.descricao, valor: parseFloat(form.valor), categoria: form.categoria || "", data: form.data || hojeLocal(), observacoes: form.observacoes || "", quantidade: 1 });
   }
-
-  const produtosDisponiveis = produtos.filter(p => {
-    const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
-    if (vars.length > 0) return vars.some(v => v.estoque > 0);
-    return p.quantidadeEstoque > 0;
-  });
-
   return (
     <form onSubmit={submit}>
-      {tipo === "venda" && produtosDisponiveis.length > 0 && (
-        <div style={{ marginBottom: 20 }}>
-          <div className="card" style={{ padding: 18, background: "var(--surface2)", border: "1px solid var(--border2)" }}>
-            <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 14, color: "var(--text2)", textTransform: "uppercase", letterSpacing: "0.6px" }}>Vincular Produto do Estoque</div>
-            <div className="form-grid form-grid-2">
-              <div className="input-group">
-                <label className="input-label">Produto</label>
-                <select className="input" value={form.produtoId} onChange={e => handleProduto(e.target.value)}>
-                  <option value="">Selecionar produto...</option>
-                  {produtosDisponiveis.map(p => {
-                    const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
-                    const estoqueTotal = vars.length > 0 ? vars.reduce((s, v) => s + v.estoque, 0) : p.quantidadeEstoque;
-                    return <option key={p.id} value={p.id}>{p.nome} (Estq: {estoqueTotal})</option>;
-                  })}
-                </select>
-              </div>
-              <div className="input-group">
-                <label className="input-label">Quantidade (máx: {estoqueDisponivel})</label>
-                <input className="input" type="number" min="1" max={estoqueDisponivel || undefined} value={form.quantidade} onChange={e => handleQtd(e.target.value)} style={qtd > estoqueDisponivel ? { borderColor: "var(--red)" } : {}} />
-              </div>
-            </div>
-            {form.produtoId && temVariantes && (
-              <div className="variante-grade-section">
-                <div className="variante-grade-label">Tamanho</div>
-                <div className="variante-grade-chips">
-                  {tamanhos.map(tam => {
-                    const opcoes = coresParaTam[tam] || [];
-                    const temEstoque = opcoes.some(o => o.variante.estoque > 0);
-                    const estoqueTotal = opcoes.reduce((s, o) => s + (o.variante.estoque || 0), 0);
-                    return (
-                      <div key={tam} className={`variante-chip ${tamSel === tam ? "active" : ""} ${!temEstoque ? "disabled" : ""}`} onClick={() => temEstoque && setTamSel(tam)}>
-                        {tam}
-                        {estoqueTotal <= 5 && estoqueTotal > 0 && <span className="variante-chip-estoque">{estoqueTotal}</span>}
-                        {estoqueTotal === 0 && <span className="variante-chip-estoque zero">0</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-                {tamSel && coresParaTam[tamSel] && coresParaTam[tamSel][0]?.cor !== "" && (
-                  <div style={{ marginTop: 12 }}>
-                    <div className="variante-grade-label">Cor</div>
-                    <div className="variante-grade-chips">
-                      {(coresParaTam[tamSel] || []).map(({ cor, variante: v }) => (
-                        <div key={cor} className={`variante-chip ${corSel === cor ? "active-cor" : ""} ${v.estoque === 0 ? "disabled" : ""}`} onClick={() => v.estoque > 0 && setCorSel(cor)}>
-                          {cor}
-                          {v.estoque <= 5 && v.estoque > 0 && <span className="variante-chip-estoque">{v.estoque}</span>}
-                          {v.estoque === 0 && <span className="variante-chip-estoque zero">0</span>}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-                {varianteSelecionada && (
-                  <div className="variante-resultado">
-                    <span className="variante-resultado-nome">✓ {varianteSelecionada.label}</span>
-                    <span className={`badge ${varianteSelecionada.estoque <= 5 ? "badge-yellow" : "badge-green"}`}>{varianteSelecionada.estoque} un. em estoque</span>
-                  </div>
-                )}
-              </div>
-            )}
-            {produtoSelecionado && valorVenda > 0 && (
-              <div className="margem-preview" style={{ marginTop: 14 }}>
-                <div className="margem-item"><span className="margem-item-label">Custo Total</span><span className="margem-item-value" style={{ color: "var(--red)" }}>{formatBRL(custoTotal)}</span></div>
-                <div style={{ color: "var(--border2)", fontSize: 20 }}>→</div>
-                <div className="margem-item"><span className="margem-item-label">Venda</span><span className="margem-item-value" style={{ color: "var(--green)" }}>{formatBRL(valorVenda)}</span></div>
-                <div style={{ color: "var(--border2)", fontSize: 20 }}>→</div>
-                <div className="margem-item"><span className="margem-item-label">Lucro</span><span className="margem-item-value" style={{ color: lucro >= 0 ? "var(--green)" : "var(--red)" }}>{formatBRL(lucro)}</span></div>
-                <div style={{ marginLeft: "auto" }}><span className={`badge ${margem > 30 ? "badge-green" : margem > 10 ? "badge-gold" : "badge-red"}`} style={{ fontSize: 14, padding: "5px 12px" }}>{margem.toFixed(1)}%</span></div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
       <div className="form-grid form-grid-2" style={{ marginBottom: 14 }}>
-        <div className="input-group"><label className="input-label">Descrição *</label><input className="input" placeholder="Ex: Camiseta Dry-Fit" value={form.descricao} onChange={e => set("descricao", e.target.value)} /></div>
+        <div className="input-group"><label className="input-label">Descrição *</label><input className="input" placeholder="Ex: Aluguel, Luz..." value={form.descricao} onChange={e => set("descricao", e.target.value)} /></div>
         <div className="input-group"><label className="input-label">Valor (R$) *</label><input className="input" type="number" step="0.01" min="0" value={form.valor} onChange={e => set("valor", e.target.value)} /></div>
         <div className="input-group">
           <label className="input-label">Categoria</label>
@@ -1265,24 +1420,12 @@ function FormTransacao({ tipo, dados, onSalvar, onCancelar }) {
             {categorias.map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
           </select>
         </div>
-        {tipo === "venda" && (
-          <div className="input-group">
-            <label className="input-label">Cliente</label>
-            <select className="input" value={form.cliente} onChange={e => set("cliente", e.target.value)}>
-              <option value="">Nenhum</option>
-              {(dados.clientes || []).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-        )}
         <div className="input-group"><label className="input-label">Data</label><input className="input" type="date" value={form.data} onChange={e => set("data", e.target.value)} /></div>
         <div className="input-group" style={{ gridColumn: "1 / -1" }}><label className="input-label">Observações</label><textarea className="input" value={form.observacoes} onChange={e => set("observacoes", e.target.value)} style={{ minHeight: 60 }} /></div>
       </div>
       <div className="form-actions">
         {onCancelar && <button type="button" className="btn btn-secondary" onClick={onCancelar}>Cancelar</button>}
-        <button type="submit" className={`btn ${tipo === "venda" ? "btn-success" : "btn-danger"}`}>
-          <Icon name={tipo === "venda" ? "check" : "expense"} />
-          {tipo === "venda" ? "Registrar Venda" : "Registrar Despesa"}
-        </button>
+        <button type="submit" className="btn btn-danger"><Icon name="expense" />Registrar Despesa</button>
       </div>
     </form>
   );
@@ -2388,6 +2531,31 @@ export default function App() {
   async function pagarFiado(id) { const f = fiados.find(x => x.id === id); if (f) await setDoc(doc(db, "fiados", id), { ...f, status: "pago", dataPagamento: hojeLocal() }); toast("Marcado como pago! ✓"); }
   async function removerFiado(id) { await deleteDoc(doc(db, "fiados", id)); }
 
+  // Venda com carrinho (múltiplos itens)
+  async function adicionarVendaCarrinho(payload) {
+    const { itens, descricao, valor, cliente, categoria, data, observacoes } = payload;
+    // Baixa o estoque de cada item
+    for (const item of itens) {
+      if (item.varianteId) {
+        const variante = variantesProduto.find(v => v.id === item.varianteId);
+        if (variante) await setDoc(doc(db, "variantesProduto", variante.id), { ...variante, estoque: Math.max(0, variante.estoque - item.quantidade) });
+      } else if (item.produtoId) {
+        const prod = produtos.find(p => p.id === item.produtoId);
+        if (prod) await setDoc(doc(db, "produtos", prod.id), { ...prod, quantidadeEstoque: Math.max(0, prod.quantidadeEstoque - item.quantidade) });
+      }
+    }
+    // Registra uma única transação com a descrição completa
+    const id = uid();
+    await setDoc(doc(db, "transacoes", id), {
+      id, tipo: "venda", descricao, valor, cliente: cliente || "", categoria: categoria || "",
+      data: data || hojeLocal(), observacoes: observacoes || "",
+      quantidade: itens.reduce((s, i) => s + i.quantidade, 0),
+      itens,
+    });
+    toast(`Venda finalizada! ${itens.length} item(s) — ${formatBRL(valor)} ✓`);
+    setPage("transacoes");
+  }
+
   // Transações
   async function adicionarTransacao(t) {
     const id = uid();
@@ -2438,8 +2606,8 @@ export default function App() {
     if (page === "painel") return <Dashboard dados={dados} />;
     if (page === "venda") return (
       <div>
-        <div className="page-header"><div><h1 className="page-title">Registrar Venda</h1><p className="page-sub">Adicione uma nova venda ao caixa</p></div></div>
-        <div className="card"><div className="card-body"><FormTransacao tipo="venda" dados={dados} onSalvar={adicionarTransacao} onCancelar={() => setPage("painel")} /></div></div>
+        <div className="page-header"><div><h1 className="page-title">Nova Venda</h1><p className="page-sub">Monte o carrinho e finalize a venda</p></div></div>
+        <CarrinhoVenda dados={dados} onSalvar={adicionarVendaCarrinho} onCancelar={() => setPage("painel")} />
       </div>
     );
     if (page === "despesa") return (
