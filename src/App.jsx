@@ -722,7 +722,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
 }
 
 // ─────────────────────────────────────────────
-// RELATÓRIO PDF
+// RELATÓRIO PDF — VERSÃO COMPLETA
 // ─────────────────────────────────────────────
 function RelatorioPDF({ dados }) {
   const transacoes = dados.transacoes || [];
@@ -734,15 +734,58 @@ function RelatorioPDF({ dados }) {
     const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
   });
 
-  const transacoesFiltradas = useMemo(() => transacoes.filter(t => t.data && t.data.startsWith(mes)).sort((a, b) => new Date(b.data) - new Date(a.data)), [transacoes, mes]);
-  const receitasMes = transacoesFiltradas.filter(t => t.tipo === "venda").reduce((s, t) => s + t.valor, 0);
-  const despesasMes = transacoesFiltradas.filter(t => t.tipo === "despesa").reduce((s, t) => s + t.valor, 0);
+  const transacoesFiltradas = useMemo(() =>
+    transacoes.filter(t => t.data && t.data.startsWith(mes)).sort((a, b) => new Date(a.data) - new Date(b.data)),
+    [transacoes, mes]);
+
+  const vendasMes = transacoesFiltradas.filter(t => t.tipo === "venda");
+  const despesasMesArr = transacoesFiltradas.filter(t => t.tipo === "despesa");
+  const receitasMes = vendasMes.reduce((s, t) => s + t.valor, 0);
+  const despesasMes = despesasMesArr.reduce((s, t) => s + t.valor, 0);
   const saldoMes = receitasMes - despesasMes;
+  const qtdVendas = vendasMes.length;
+  const ticketMedio = qtdVendas > 0 ? receitasMes / qtdVendas : 0;
+  const maiorVenda = vendasMes.length > 0 ? Math.max(...vendasMes.map(t => t.valor)) : 0;
   const percentLucroDespesa = despesasMes > 0 ? ((saldoMes / despesasMes) * 100).toFixed(1) : receitasMes > 0 ? "∞" : "0.0";
 
-  const comprasMes = useMemo(() => compras.filter(c => c.data && c.data.startsWith(mes)).sort((a, b) => new Date(b.data) - new Date(a.data)), [compras, mes]);
+  const comprasMes = useMemo(() => compras.filter(c => c.data && c.data.startsWith(mes)), [compras, mes]);
   const totalComprasMes = comprasMes.reduce((s, c) => s + c.valor, 0);
   const comprasPendentesMes = comprasMes.filter(c => c.status === "aguardando").length;
+
+  // Vendas por dia (para gráfico)
+  const [ano, mesNum] = mes.split("-");
+  const diasNoMes = new Date(parseInt(ano), parseInt(mesNum), 0).getDate();
+  const vendasPorDia = useMemo(() => {
+    const map = {};
+    for (let d = 1; d <= diasNoMes; d++) map[d] = 0;
+    vendasMes.forEach(t => {
+      const dia = parseInt(t.data.slice(8, 10));
+      if (dia) map[dia] = (map[dia] || 0) + t.valor;
+    });
+    return map;
+  }, [vendasMes, diasNoMes]);
+
+  // Ranking de produtos mais vendidos
+  const rankingProdutos = useMemo(() => {
+    const map = {};
+    vendasMes.forEach(t => {
+      if (t.itens && Array.isArray(t.itens)) {
+        t.itens.forEach(item => {
+          const key = item.produtoId || item.label || "Outros";
+          const nome = item.label || item.descricao || "Produto";
+          if (!map[key]) map[key] = { nome, quantidade: 0, valor: 0 };
+          map[key].quantidade += item.quantidade || 1;
+          map[key].valor += item.subtotal || 0;
+        });
+      } else {
+        const key = t.descricao || "Outros";
+        if (!map[key]) map[key] = { nome: key, quantidade: 0, valor: 0 };
+        map[key].quantidade += t.quantidade || 1;
+        map[key].valor += t.valor || 0;
+      }
+    });
+    return Object.values(map).sort((a, b) => b.valor - a.valor).slice(0, 10);
+  }, [vendasMes]);
 
   const produtosAbaixo = [];
   produtos.forEach(p => {
@@ -752,60 +795,345 @@ function RelatorioPDF({ dados }) {
   });
 
   function gerarPDF() {
-    const [ano, mesNum] = mes.split("-");
     const nomeMes = new Date(parseInt(ano), parseInt(mesNum) - 1).toLocaleString("pt-BR", { month: "long", year: "numeric" });
-    const pctPDF = despesasMes > 0 ? ((saldoMes / despesasMes) * 100).toFixed(1) + "%" : receitasMes > 0 ? "∞" : "0.0%";
-    const pctColor = saldoMes >= 0 ? "#22c55e" : "#ef4444";
-    const linhas = transacoesFiltradas.map(t => `<tr><td>${formatData(t.data)}</td><td>${t.descricao || "—"}</td><td style="color:${t.tipo === "venda" ? "#22c55e" : "#ef4444"}">${t.tipo === "venda" ? "Venda" : "Despesa"}</td><td style="text-align:right;font-weight:600;color:${t.tipo === "venda" ? "#22c55e" : "#ef4444"}">${formatBRL(t.valor)}</td></tr>`).join("");
+    const nomeMesCap = nomeMes.charAt(0).toUpperCase() + nomeMes.slice(1);
+    const pctColor = saldoMes >= 0 ? "#16a34a" : "#dc2626";
+    const hoje = new Date().toLocaleDateString("pt-BR");
+
+    // ── Gráfico SVG de barras diárias ──
+    const maxVal = Math.max(...Object.values(vendasPorDia), 1);
+    const barW = 14;
+    const gap = 3;
+    const chartH = 100;
+    const chartW = diasNoMes * (barW + gap);
+    const barsSVG = Object.entries(vendasPorDia).map(([dia, val]) => {
+      const h = val > 0 ? Math.max(4, (val / maxVal) * chartH) : 2;
+      const x = (parseInt(dia) - 1) * (barW + gap);
+      const y = chartH - h;
+      const cor = val > 0 ? "#e8b84b" : "#e5e7eb";
+      return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${cor}"/>${val > 0 ? `<text x="${x + barW / 2}" y="${y - 3}" text-anchor="middle" font-size="7" fill="#666">${formatBRL(val).replace("R$\u00a0","").replace("R$ ","")}</text>` : ""}`;
+    }).join("");
+    const labelsSVG = Object.keys(vendasPorDia).filter(d => parseInt(d) % 5 === 0 || parseInt(d) === 1).map(dia => {
+      const x = (parseInt(dia) - 1) * (barW + gap) + barW / 2;
+      return `<text x="${x}" y="${chartH + 12}" text-anchor="middle" font-size="8" fill="#888">${dia}</text>`;
+    }).join("");
+    const svgGrafico = `<svg xmlns="http://www.w3.org/2000/svg" width="${chartW}" height="${chartH + 20}" viewBox="0 0 ${chartW} ${chartH + 20}">${barsSVG}${labelsSVG}</svg>`;
+    const svgBase64 = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgGrafico)))}`;
+
+    // ── Ranking HTML ──
+    const rankingLinhas = rankingProdutos.length === 0
+      ? "<tr><td colspan='4' style='color:#aaa;text-align:center'>Nenhuma venda registrada com produtos</td></tr>"
+      : rankingProdutos.map((p, i) => {
+        const pct = receitasMes > 0 ? ((p.valor / receitasMes) * 100).toFixed(1) : "0.0";
+        const medalha = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`;
+        const barPct = rankingProdutos[0].valor > 0 ? (p.valor / rankingProdutos[0].valor * 100).toFixed(0) : 0;
+        return `<tr>
+          <td style="font-weight:700;font-size:13px">${medalha}</td>
+          <td>
+            <div style="font-weight:600;font-size:12px">${p.nome}</div>
+            <div style="background:#f3f4f6;border-radius:99px;height:5px;margin-top:4px;overflow:hidden">
+              <div style="background:#e8b84b;height:5px;width:${barPct}%;border-radius:99px"></div>
+            </div>
+          </td>
+          <td style="text-align:center;font-weight:600;color:#374151">${p.quantidade} un.</td>
+          <td style="text-align:right;font-weight:700;color:#16a34a">${formatBRL(p.valor)}<div style="font-size:10px;color:#9ca3af">${pct}% do total</div></td>
+        </tr>`;
+      }).join("");
+
+    // ── Transações ──
+    const linhasT = [...transacoesFiltradas].reverse().map(t =>
+      `<tr><td style="color:#6b7280;white-space:nowrap">${formatData(t.data)}</td><td>${t.descricao || "—"}</td><td><span style="display:inline-block;padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:${t.tipo === "venda" ? "#dcfce7" : "#fee2e2"};color:${t.tipo === "venda" ? "#16a34a" : "#dc2626"}">${t.tipo === "venda" ? "Venda" : "Despesa"}</span></td><td style="text-align:right;font-weight:700;color:${t.tipo === "venda" ? "#16a34a" : "#dc2626"}">${formatBRL(t.valor)}</td></tr>`
+    ).join("");
+
+    // ── Estoque ──
     const linhasProd = produtos.map(p => {
       const vars = variantesProduto.filter(v => v.produtoPaiId === p.id);
       const estoqueTotal = vars.length > 0 ? vars.reduce((s, v) => s + (v.estoque || 0), 0) : p.quantidadeEstoque;
       const margem = p.precoCompra > 0 ? ((p.precoVenda - p.precoCompra) / p.precoCompra * 100).toFixed(0) : "—";
-      const varStr = vars.length > 0 ? vars.map(v => `${v.label}: ${v.estoque}`).join(", ") : "—";
-      return `<tr><td>${p.nome}</td><td style="text-align:center">${estoqueTotal}</td><td style="font-size:10px;color:#666">${varStr}</td><td>${formatBRL(p.precoVenda)}</td><td style="text-align:center">${margem}%</td></tr>`;
+      const baixo = estoqueTotal <= p.quantidadeMinima;
+      return `<tr style="background:${baixo ? "#fffbeb" : "#fff"}"><td style="font-weight:600">${p.nome}${p.sku ? `<div style="font-size:10px;color:#9ca3af">SKU: ${p.sku}</div>` : ""}</td><td style="text-align:center;font-weight:700;color:${baixo ? "#d97706" : "#16a34a"}">${estoqueTotal}</td><td style="text-align:right">${formatBRL(p.precoVenda)}</td><td style="text-align:center"><span style="padding:2px 8px;border-radius:99px;font-size:10px;font-weight:700;background:${margem !== "—" && parseInt(margem) > 30 ? "#dcfce7" : "#fef9c3"};color:${margem !== "—" && parseInt(margem) > 30 ? "#16a34a" : "#d97706"}">${margem}%</span></td></tr>`;
     }).join("");
-    const linhasCompras = comprasMes.map(c => `<tr><td>${formatData(c.data)}</td><td>${c.fornecedor}</td><td style="text-align:right;font-weight:600;color:#e8b84b">${formatBRL(c.valor)}</td><td style="color:${c.status === "recebido" ? "#22c55e" : "#f5a623"}">${c.status === "recebido" ? "✓ Recebido" : "⏳ Aguardando"}</td><td style="font-size:10px;color:#666">${c.observacoes || "—"}</td></tr>`).join("");
-    const html = `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório FitMGwear</title><style>*{box-sizing:border-box;margin:0;padding:0}body{font-family:Arial,sans-serif;font-size:12px;color:#1a1a1a;padding:32px}h1{font-size:26px;font-weight:900;letter-spacing:3px;color:#e8b84b}h2{font-size:14px;font-weight:700;text-transform:uppercase;margin:24px 0 10px;color:#333;border-bottom:2px solid #e8b84b;padding-bottom:4px}.header{display:flex;justify-content:space-between;margin-bottom:24px;border-bottom:1px solid #ddd;padding-bottom:16px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}.stat{padding:14px;border-radius:8px;border:1px solid #ddd}.stat-label{font-size:10px;text-transform:uppercase;color:#666;margin-bottom:4px}.stat-value{font-size:20px;font-weight:900}.green{color:#22c55e}.red{color:#ef4444}.blue{color:#3b82f6}table{width:100%;border-collapse:collapse;margin-bottom:8px}th{text-align:left;padding:8px;font-size:10px;text-transform:uppercase;background:#f5f5f5;border-bottom:1px solid #ddd;color:#666}td{padding:8px;border-bottom:1px solid #eee;font-size:11px}.footer{margin-top:32px;font-size:10px;color:#aaa;text-align:center;border-top:1px solid #eee;padding-top:12px}</style></head><body>
-<div class="header"><div><h1>FITMGWEAR</h1><div style="color:#666;margin-top:2px">Relatório — ${nomeMes}</div></div><div style="text-align:right;font-size:11px;color:#666">Gerado: ${new Date().toLocaleDateString("pt-BR")}</div></div>
-<h2>📊 Resumo do Mês</h2><div class="stats"><div class="stat"><div class="stat-label">Receitas</div><div class="stat-value green">${formatBRL(receitasMes)}</div></div><div class="stat"><div class="stat-label">Despesas</div><div class="stat-value red">${formatBRL(despesasMes)}</div></div><div class="stat"><div class="stat-label">Saldo</div><div class="stat-value ${saldoMes >= 0 ? "blue" : "red"}">${formatBRL(saldoMes)}</div></div><div class="stat"><div class="stat-label">Lucro/Despesa</div><div class="stat-value" style="color:${pctColor}">${pctPDF}</div></div></div>
-${produtosAbaixo.length > 0 ? `<div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:6px;padding:10px;font-size:11px;color:#92400e;margin-bottom:16px">⚠️ Estoque crítico: ${produtosAbaixo.map(p => `${p.nome} (${p.estoque} un.)`).join(", ")}</div>` : ""}
-<h2>💳 Transações (${transacoesFiltradas.length})</h2>${transacoesFiltradas.length === 0 ? "<p style='color:#aaa'>Nenhuma transação.</p>" : `<table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>${linhas}</tbody></table>`}
-<h2>🛒 Compras (${comprasMes.length}) — Total: ${formatBRL(totalComprasMes)}</h2>${comprasMes.length === 0 ? "<p style='color:#aaa'>Nenhuma compra.</p>" : `<table><thead><tr><th>Data</th><th>Fornecedor</th><th style="text-align:right">Valor</th><th>Status</th><th>Obs.</th></tr></thead><tbody>${linhasCompras}</tbody></table>`}
-<h2>📦 Estoque (${produtos.length})</h2>${produtos.length === 0 ? "<p style='color:#aaa'>Nenhum produto.</p>" : `<table><thead><tr><th>Produto</th><th style="text-align:center">Total</th><th>Variantes</th><th>Venda</th><th style="text-align:center">Margem</th></tr></thead><tbody>${linhasProd}</tbody></table>`}
-<div class="footer">FitMGwear Sistema de Gestão</div></body></html>`;
+
+    // ── Compras ──
+    const linhasCompras = comprasMes.map(c =>
+      `<tr><td style="color:#6b7280">${formatData(c.data)}</td><td>${c.fornecedor}</td><td style="text-align:right;font-weight:700;color:#e8b84b">${formatBRL(c.valor)}</td><td style="color:${c.status === "recebido" ? "#16a34a" : "#d97706"}">${c.status === "recebido" ? "✓ Recebido" : "⏳ Aguardando"}</td></tr>`
+    ).join("");
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Relatório FitMGwear — ${nomeMesCap}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#111827;background:#fff;padding:0}
+  .page{padding:36px 40px}
+  /* HEADER */
+  .report-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:20px;border-bottom:3px solid #e8b84b;margin-bottom:28px}
+  .brand h1{font-size:30px;font-weight:900;letter-spacing:4px;color:#e8b84b;line-height:1}
+  .brand p{font-size:12px;color:#6b7280;margin-top:3px;letter-spacing:1px}
+  .report-meta{text-align:right}
+  .report-meta .period{font-size:18px;font-weight:800;color:#111827;line-height:1}
+  .report-meta .generated{font-size:11px;color:#9ca3af;margin-top:3px}
+  /* SECTION */
+  .section{margin-bottom:32px}
+  .section-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:1.5px;color:#6b7280;border-bottom:1px solid #e5e7eb;padding-bottom:7px;margin-bottom:16px;display:flex;align-items:center;gap:7px}
+  .section-title span{font-size:15px}
+  /* KPI GRID */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:8px}
+  .kpi{border-radius:10px;padding:16px 18px;border:1px solid #e5e7eb;position:relative;overflow:hidden}
+  .kpi::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;border-radius:0 0 10px 10px}
+  .kpi-green{border-color:#bbf7d0}.kpi-green::after{background:#16a34a}
+  .kpi-red{border-color:#fecaca}.kpi-red::after{background:#dc2626}
+  .kpi-blue{border-color:#bfdbfe}.kpi-blue::after{background:#2563eb}
+  .kpi-gold{border-color:#fde68a}.kpi-gold::after{background:#e8b84b}
+  .kpi-purple{border-color:#e9d5ff}.kpi-purple::after{background:#7c3aed}
+  .kpi-teal{border-color:#99f6e4}.kpi-teal::after{background:#0d9488}
+  .kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#9ca3af;margin-bottom:8px}
+  .kpi-value{font-size:22px;font-weight:900;line-height:1;letter-spacing:-0.5px}
+  .kpi-sub{font-size:10px;color:#9ca3af;margin-top:4px}
+  .kpi-green .kpi-value{color:#16a34a}
+  .kpi-red .kpi-value{color:#dc2626}
+  .kpi-blue .kpi-value{color:#2563eb}
+  .kpi-gold .kpi-value{color:#e8b84b}
+  .kpi-purple .kpi-value{color:#7c3aed}
+  .kpi-teal .kpi-value{color:#0d9488}
+  /* CHART */
+  .chart-wrap{background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;padding:16px 20px}
+  .chart-title{font-size:11px;font-weight:700;color:#374151;margin-bottom:12px}
+  .chart-img{width:100%;overflow-x:auto}
+  /* TABLE */
+  table{width:100%;border-collapse:collapse}
+  th{text-align:left;padding:9px 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;background:#f9fafb;border-bottom:2px solid #e5e7eb;color:#6b7280}
+  td{padding:9px 12px;border-bottom:1px solid #f3f4f6;font-size:11px;vertical-align:middle}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#fafafa}
+  .tfoot-row td{background:#f9fafb;font-weight:700;border-top:2px solid #e8b84b;font-size:12px}
+  /* ALERT */
+  .alert{border-radius:8px;padding:10px 14px;font-size:11px;margin-bottom:16px}
+  .alert-warn{background:#fffbeb;border:1px solid #fbbf24;color:#92400e}
+  /* FOOTER */
+  .report-footer{margin-top:36px;padding-top:14px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;font-size:10px;color:#9ca3af}
+  /* TOC */
+  .toc{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:28px}
+  .toc-item{background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;font-size:11px;color:#374151;font-weight:600}
+  .toc-item span{font-size:16px;margin-right:6px}
+  @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- HEADER -->
+  <div class="report-header">
+    <div class="brand">
+      <h1>FITMGWEAR</h1>
+      <p>Relatório Financeiro Mensal</p>
+    </div>
+    <div class="report-meta">
+      <div class="period">${nomeMesCap}</div>
+      <div class="generated">Gerado em ${hoje}</div>
+    </div>
+  </div>
+
+  <!-- ÍNDICE -->
+  <div class="toc">
+    <div class="toc-item"><span>📊</span>Índice de Vendas</div>
+    <div class="toc-item"><span>📈</span>Gráfico Diário</div>
+    <div class="toc-item"><span>🏆</span>Produtos Mais Vendidos</div>
+    <div class="toc-item"><span>💳</span>Transações</div>
+    <div class="toc-item"><span>📦</span>Estoque Atual</div>
+    <div class="toc-item"><span>🛒</span>Compras do Mês</div>
+  </div>
+
+  <!-- 1. ÍNDICE DE VENDAS -->
+  <div class="section">
+    <div class="section-title"><span>📊</span>1. Índice de Vendas — Resumo Geral</div>
+    <div class="kpi-grid">
+      <div class="kpi kpi-green">
+        <div class="kpi-label">Total Vendido</div>
+        <div class="kpi-value">${formatBRL(receitasMes)}</div>
+        <div class="kpi-sub">receitas do mês</div>
+      </div>
+      <div class="kpi kpi-red">
+        <div class="kpi-label">Total Despesas</div>
+        <div class="kpi-value">${formatBRL(despesasMes)}</div>
+        <div class="kpi-sub">gastos do mês</div>
+      </div>
+      <div class="kpi kpi-blue">
+        <div class="kpi-label">Saldo Líquido</div>
+        <div class="kpi-value" style="color:${pctColor}">${formatBRL(saldoMes)}</div>
+        <div class="kpi-sub">${saldoMes >= 0 ? "lucro" : "prejuízo"}</div>
+      </div>
+      <div class="kpi kpi-gold">
+        <div class="kpi-label">Lucro / Despesa</div>
+        <div class="kpi-value" style="color:${pctColor}">${percentLucroDespesa}${percentLucroDespesa !== "∞" ? "%" : ""}</div>
+        <div class="kpi-sub">índice de eficiência</div>
+      </div>
+    </div>
+    <div class="kpi-grid" style="margin-top:12px">
+      <div class="kpi kpi-teal">
+        <div class="kpi-label">Nº de Vendas</div>
+        <div class="kpi-value">${qtdVendas}</div>
+        <div class="kpi-sub">transações de venda</div>
+      </div>
+      <div class="kpi kpi-purple">
+        <div class="kpi-label">Ticket Médio</div>
+        <div class="kpi-value">${formatBRL(ticketMedio)}</div>
+        <div class="kpi-sub">por venda</div>
+      </div>
+      <div class="kpi kpi-gold">
+        <div class="kpi-label">Maior Venda</div>
+        <div class="kpi-value">${formatBRL(maiorVenda)}</div>
+        <div class="kpi-sub">maior transação</div>
+      </div>
+      <div class="kpi kpi-blue">
+        <div class="kpi-label">Compras</div>
+        <div class="kpi-value" style="color:#7c3aed">${formatBRL(totalComprasMes)}</div>
+        <div class="kpi-sub">${comprasMes.length} pedido${comprasMes.length !== 1 ? "s" : ""}${comprasPendentesMes > 0 ? ` · ${comprasPendentesMes} pendente${comprasPendentesMes !== 1 ? "s" : ""}` : ""}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. GRÁFICO DIÁRIO -->
+  <div class="section">
+    <div class="section-title"><span>📈</span>2. Gráfico de Vendas — Por Dia</div>
+    <div class="chart-wrap">
+      <div class="chart-title">Receitas diárias em ${nomeMesCap} (R$)</div>
+      <div class="chart-img">
+        <img src="${svgBase64}" style="max-width:100%;height:auto" />
+      </div>
+      <div style="display:flex;gap:24px;margin-top:12px;font-size:10px;color:#6b7280">
+        <span>🟡 Dias com vendas &nbsp;&nbsp; ⬜ Dias sem vendas</span>
+        <span style="margin-left:auto">Total de dias com venda: <strong>${Object.values(vendasPorDia).filter(v => v > 0).length}</strong> de ${diasNoMes}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. RANKING PRODUTOS -->
+  <div class="section">
+    <div class="section-title"><span>🏆</span>3. Produtos Mais Vendidos</div>
+    ${rankingProdutos.length === 0
+      ? "<p style='color:#aaa;font-size:12px'>Nenhuma venda com produtos vinculados neste período.</p>"
+      : `<table>
+          <thead><tr><th>#</th><th>Produto</th><th style="text-align:center">Quantidade</th><th style="text-align:right">Valor Total</th></tr></thead>
+          <tbody>${rankingLinhas}</tbody>
+          <tfoot><tr class="tfoot-row"><td colspan="2">Total (top ${rankingProdutos.length})</td><td style="text-align:center">${rankingProdutos.reduce((s, p) => s + p.quantidade, 0)} un.</td><td style="text-align:right;color:#16a34a">${formatBRL(rankingProdutos.reduce((s, p) => s + p.valor, 0))}</td></tr></tfoot>
+        </table>`
+    }
+  </div>
+
+  <!-- 4. TRANSAÇÕES -->
+  <div class="section">
+    <div class="section-title"><span>💳</span>4. Transações do Mês (${transacoesFiltradas.length})</div>
+    ${produtosAbaixo.length > 0 ? `<div class="alert alert-warn">⚠️ Estoque crítico: ${produtosAbaixo.map(p => `<strong>${p.nome}</strong> (${p.estoque} un.)`).join(", ")}</div>` : ""}
+    ${transacoesFiltradas.length === 0
+      ? "<p style='color:#aaa;font-size:12px'>Nenhuma transação neste mês.</p>"
+      : `<table>
+          <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead>
+          <tbody>${linhasT}</tbody>
+          <tfoot>
+            <tr class="tfoot-row"><td colspan="2">Receitas</td><td></td><td style="text-align:right;color:#16a34a">${formatBRL(receitasMes)}</td></tr>
+            <tr class="tfoot-row"><td colspan="2">Despesas</td><td></td><td style="text-align:right;color:#dc2626">${formatBRL(despesasMes)}</td></tr>
+          </tfoot>
+        </table>`
+    }
+  </div>
+
+  <!-- 5. ESTOQUE -->
+  <div class="section">
+    <div class="section-title"><span>📦</span>5. Estoque Atual (${produtos.length} produtos)</div>
+    ${produtos.length === 0
+      ? "<p style='color:#aaa;font-size:12px'>Nenhum produto cadastrado.</p>"
+      : `<table>
+          <thead><tr><th>Produto</th><th style="text-align:center">Estoque</th><th style="text-align:right">Preço Venda</th><th style="text-align:center">Margem</th></tr></thead>
+          <tbody>${linhasProd}</tbody>
+        </table>`
+    }
+  </div>
+
+  <!-- 6. COMPRAS -->
+  <div class="section">
+    <div class="section-title"><span>🛒</span>6. Compras do Mês (${comprasMes.length})</div>
+    ${comprasMes.length === 0
+      ? "<p style='color:#aaa;font-size:12px'>Nenhuma compra neste mês.</p>"
+      : `<table>
+          <thead><tr><th>Data</th><th>Fornecedor</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
+          <tbody>${linhasCompras}</tbody>
+          <tfoot><tr class="tfoot-row"><td colspan="2">Total</td><td style="text-align:right;color:#e8b84b">${formatBRL(totalComprasMes)}</td><td>${comprasPendentesMes > 0 ? `⏳ ${comprasPendentesMes} aguardando` : "✓ Todos recebidos"}</td></tr></tfoot>
+        </table>`
+    }
+  </div>
+
+  <!-- FOOTER -->
+  <div class="report-footer">
+    <span>FitMGwear — Sistema de Gestão</span>
+    <span>Relatório referente a ${nomeMesCap}</span>
+    <span>Gerado em ${hoje}</span>
+  </div>
+
+</div>
+</body>
+</html>`;
+
     const win = window.open("", "_blank");
     win.document.write(html);
     win.document.close();
-    setTimeout(() => win.print(), 500);
+    setTimeout(() => win.print(), 600);
   }
 
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Relatório PDF</h1><p className="page-sub">Gere um relatório financeiro completo</p></div>
+        <div><h1 className="page-title">Relatório PDF</h1><p className="page-sub">Relatório financeiro completo com gráfico e ranking</p></div>
         <button className="btn btn-primary" onClick={gerarPDF}><Icon name="download" />Gerar e Imprimir PDF</button>
       </div>
+
+      {/* Preview dos dados no app */}
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="card-body">
           <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-            <div className="input-group" style={{ minWidth: 200 }}><label className="input-label">Mês</label><input className="input" type="month" value={mes} onChange={e => setMes(e.target.value)} /></div>
+            <div className="input-group" style={{ minWidth: 200 }}>
+              <label className="input-label">Mês de referência</label>
+              <input className="input" type="month" value={mes} onChange={e => setMes(e.target.value)} />
+            </div>
             <div style={{ display: "flex", gap: 12, flexWrap: "wrap", paddingTop: 20 }}>
               <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Receitas: </span><span style={{ color: "var(--green)", fontWeight: 700 }}>{formatBRL(receitasMes)}</span></div>
               <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Despesas: </span><span style={{ color: "var(--red)", fontWeight: 700 }}>{formatBRL(despesasMes)}</span></div>
               <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Saldo: </span><span style={{ color: saldoMes >= 0 ? "var(--blue)" : "var(--red)", fontWeight: 700 }}>{formatBRL(saldoMes)}</span></div>
-              <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Lucro/Despesa: </span><span style={{ color: saldoMes >= 0 ? "var(--green)" : "var(--red)", fontWeight: 700 }}>{percentLucroDespesa}{percentLucroDespesa !== "∞" ? "%" : ""}</span></div>
-              {comprasMes.length > 0 && <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Compras: </span><span style={{ color: "#a78bfa", fontWeight: 700 }}>{formatBRL(totalComprasMes)}</span>{comprasPendentesMes > 0 && <span style={{ color: "var(--yellow)", fontSize: 11, marginLeft: 6 }}>({comprasPendentesMes} aguardando)</span>}</div>}
+              <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Vendas: </span><span style={{ fontWeight: 700 }}>{qtdVendas}</span></div>
+              <div style={{ fontSize: 13 }}><span style={{ color: "var(--text2)" }}>Ticket médio: </span><span style={{ color: "var(--accent)", fontWeight: 700 }}>{formatBRL(ticketMedio)}</span></div>
             </div>
           </div>
         </div>
       </div>
+
+      {/* Ranking preview */}
+      {rankingProdutos.length > 0 && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="card-header" style={{ padding: "16px 20px 12px" }}><span className="card-title">🏆 Top Produtos do Mês</span></div>
+          <div className="table-wrap">
+            <table><thead><tr><th>#</th><th>Produto</th><th style={{ textAlign: "center" }}>Qtd</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
+              <tbody>{rankingProdutos.map((p, i) => (
+                <tr key={i}>
+                  <td style={{ fontWeight: 700, color: i === 0 ? "var(--accent)" : "var(--text2)" }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}º`}</td>
+                  <td style={{ fontWeight: 600 }}>{p.nome}</td>
+                  <td style={{ textAlign: "center", color: "var(--text2)" }}>{p.quantidade} un.</td>
+                  <td style={{ textAlign: "right", fontWeight: 700, color: "var(--green)" }}>{formatBRL(p.valor)}</td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       <div className="card">
         <div className="card-header" style={{ padding: "18px 20px 14px" }}><span className="card-title">Transações ({transacoesFiltradas.length})</span></div>
         <div className="table-wrap">
           {transacoesFiltradas.length === 0
             ? <div className="empty-state"><div className="empty-icon">📄</div><div className="empty-text">Nenhuma transação neste mês</div></div>
             : <table><thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th style={{ textAlign: "right" }}>Valor</th></tr></thead>
-              <tbody>{transacoesFiltradas.map(t => (
+              <tbody>{[...transacoesFiltradas].reverse().map(t => (
                 <tr key={t.id}>
                   <td style={{ color: "var(--text2)", whiteSpace: "nowrap" }}>{formatData(t.data)}</td>
                   <td>{t.descricao}</td>
