@@ -1737,8 +1737,20 @@ function Clientes({ dados, onAdicionar, onRemover, onAtualizar }) {
   const [modal, setModal] = useState(false);
   const [editando, setEditando] = useState(null);
   const [confirmId, setConfirmId] = useState(null);
+  const [busca, setBusca] = useState("");
   const [form, setForm] = useState({ nome: "", telefone: "", email: "" });
-  const clientes = dados.clientes || [];
+  const clientes = useMemo(() => {
+    const lista = [...(dados.clientes || [])].sort((a, b) =>
+      (a.nome || "").localeCompare(b.nome || "", "pt-BR", { sensitivity: "base" })
+    );
+    if (!busca.trim()) return lista;
+    const q = busca.toLowerCase();
+    return lista.filter(c =>
+      c.nome?.toLowerCase().includes(q) ||
+      c.telefone?.toLowerCase().includes(q) ||
+      c.email?.toLowerCase().includes(q)
+    );
+  }, [dados.clientes, busca]);
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
   function abrirModal(c = null) {
@@ -1756,10 +1768,13 @@ function Clientes({ dados, onAdicionar, onRemover, onAtualizar }) {
 
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">Clientes</h1><p className="page-sub">Base de clientes</p></div><button className="btn btn-primary" onClick={() => abrirModal()}><Icon name="plus" /> Novo</button></div>
+      <div className="page-header"><div><h1 className="page-title">Clientes</h1><p className="page-sub">Base de clientes — ordem alfabética</p></div><button className="btn btn-primary" onClick={() => abrirModal()}><Icon name="plus" /> Novo</button></div>
+      <div style={{ marginBottom: 16 }}>
+        <input className="input" style={{ maxWidth: 300 }} placeholder="🔍 Buscar cliente..." value={busca} onChange={e => setBusca(e.target.value)} />
+      </div>
       <div className="card"><div className="table-wrap">
         {clientes.length === 0
-          ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">Nenhum cliente</div></div>
+          ? <div className="empty-state"><div className="empty-icon">👥</div><div className="empty-text">{busca ? "Nenhum cliente encontrado" : "Nenhum cliente"}</div></div>
           : <table><thead><tr><th>Nome</th><th>Telefone</th><th>Email</th><th>Desde</th><th></th></tr></thead>
             <tbody>{clientes.map(c => (
               <tr key={c.id}>
@@ -2241,11 +2256,31 @@ function Encomendas({ encomendas, onAdicionar, onAtualizar, onRemover }) {
 // ─────────────────────────────────────────────
 // FIADO / COBRANÇAS
 // ─────────────────────────────────────────────
-function Fiado({ fiados, onAdicionar, onPagar, onRemover }) {
+function Fiado({ fiados, onAdicionar, onPagar, onRemover, dados }) {
   const [modal, setModal] = useState(false);
   const [confirmId, setConfirmId] = useState(null);
   const [aba, setAba] = useState("pendentes");
-  const [form, setForm] = useState({ nome: "", telefone: "", valor: "", data: hojeLocal(), formaPagamento: "pix", observacoes: "" });
+  const [form, setForm] = useState({ nome: "", telefone: "", valor: "", data: hojeLocal(), formaPagamento: "pix", observacoes: "", produtoId: "", varianteId: "", quantidade: "1" });
+
+  const produtos = dados?.produtos || [];
+  const variantesProduto = dados?.variantesProduto || [];
+  const produtoSel = produtos.find(p => p.id === form.produtoId);
+  const varsProduto = variantesProduto.filter(v => v.produtoPaiId === form.produtoId);
+  const temVariantes = varsProduto.length > 0;
+  const varianteSel = variantesProduto.find(v => v.id === form.varianteId);
+
+  // Auto-fill valor when product selected
+  function handleProdutoChange(id) {
+    const p = produtos.find(x => x.id === id);
+    setForm(prev => ({ ...prev, produtoId: id, varianteId: "", valor: p ? String(p.precoVenda * (parseInt(prev.quantidade) || 1)) : prev.valor }));
+  }
+  function handleQtdChange(qtd) {
+    const q = parseInt(qtd) || 1;
+    setForm(prev => {
+      const p = produtos.find(x => x.id === prev.produtoId);
+      return { ...prev, quantidade: qtd, valor: p ? String(p.precoVenda * q) : prev.valor };
+    });
+  }
 
   function set(k, v) { setForm(p => ({ ...p, [k]: v })); }
 
@@ -2253,9 +2288,18 @@ function Fiado({ fiados, onAdicionar, onPagar, onRemover }) {
     e.preventDefault();
     if (!form.nome.trim()) return toast("Informe o nome", "error");
     if (!form.valor || parseFloat(form.valor) <= 0) return toast("Valor inválido", "error");
-    onAdicionar({ nome: form.nome.trim(), telefone: form.telefone.trim(), valor: parseFloat(form.valor), data: form.data || hojeLocal(), formaPagamento: form.formaPagamento, observacoes: form.observacoes.trim(), status: "pendente" });
-    setForm({ nome: "", telefone: "", valor: "", data: hojeLocal(), formaPagamento: "pix", observacoes: "" });
-    setModal(false); toast("Fiado registrado! ✓");
+    if (form.produtoId && temVariantes && !form.varianteId) return toast("Selecione a variante do produto", "error");
+    onAdicionar({
+      nome: form.nome.trim(), telefone: form.telefone.trim(),
+      valor: parseFloat(form.valor), data: form.data || hojeLocal(),
+      formaPagamento: form.formaPagamento, observacoes: form.observacoes.trim(),
+      status: "pendente",
+      produtoId: form.produtoId || null,
+      varianteId: form.varianteId || null,
+      quantidade: parseInt(form.quantidade) || 1,
+    });
+    setForm({ nome: "", telefone: "", valor: "", data: hojeLocal(), formaPagamento: "pix", observacoes: "", produtoId: "", varianteId: "", quantidade: "1" });
+    setModal(false); toast("Fiado registrado! Estoque baixado ✓");
   }
 
   const FORMA_LABEL = { pix: "Pix", dinheiro: "Dinheiro", cartao: "Cartão", transferencia: "Transferência" };
@@ -2348,6 +2392,31 @@ function Fiado({ fiados, onAdicionar, onPagar, onRemover }) {
           <div className="form-grid" style={{ gap: 14 }}>
             <div className="input-group"><label className="input-label">Nome *</label><input className="input" placeholder="Ex: Ana Lima" value={form.nome} onChange={e => set("nome", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Telefone / WhatsApp</label><input className="input" placeholder="(11) 99999-9999" value={form.telefone} onChange={e => set("telefone", e.target.value)} /></div>
+
+            {/* Produto (opcional) */}
+            <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+              <label className="input-label">Produto do Estoque (opcional)</label>
+              <select className="input" value={form.produtoId} onChange={e => handleProdutoChange(e.target.value)}>
+                <option value="">— Sem produto vinculado —</option>
+                {produtos.map(p => <option key={p.id} value={p.id}>{p.nome}</option>)}
+              </select>
+            </div>
+            {form.produtoId && temVariantes && (
+              <div className="input-group" style={{ gridColumn: "1 / -1" }}>
+                <label className="input-label">Variante *</label>
+                <select className="input" value={form.varianteId} onChange={e => set("varianteId", e.target.value)}>
+                  <option value="">Selecione...</option>
+                  {varsProduto.map(v => <option key={v.id} value={v.id}>{v.label} (Estq: {v.estoque})</option>)}
+                </select>
+              </div>
+            )}
+            {form.produtoId && (
+              <div className="input-group">
+                <label className="input-label">Quantidade</label>
+                <input className="input" type="number" min="1" value={form.quantidade} onChange={e => handleQtdChange(e.target.value)} />
+              </div>
+            )}
+
             <div className="input-group"><label className="input-label">Valor (R$) *</label><input className="input" type="number" step="0.01" min="0" placeholder="0,00" value={form.valor} onChange={e => set("valor", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Data</label><input className="input" type="date" value={form.data} onChange={e => set("data", e.target.value)} /></div>
             <div className="input-group" style={{ gridColumn: "1 / -1" }}>
@@ -2360,7 +2429,12 @@ function Fiado({ fiados, onAdicionar, onPagar, onRemover }) {
             </div>
             <div className="input-group" style={{ gridColumn: "1 / -1" }}><label className="input-label">Observações</label><textarea className="input" placeholder="Ex: 2 camisetas dry-fit" value={form.observacoes} onChange={e => set("observacoes", e.target.value)} style={{ minHeight: 60 }} /></div>
           </div>
-          <div className="info-box" style={{ marginTop: 14 }}>💡 Clique em <strong>📲 Cobrar</strong> para abrir uma mensagem pronta no WhatsApp.</div>
+          <div className="info-box" style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 6 }}>
+            {form.produtoId
+              ? <span>📦 O estoque será <strong>baixado imediatamente</strong>. O valor só entra no faturamento quando marcado como <strong>Recebido</strong>.</span>
+              : <span>💡 Clique em <strong>📲 Cobrar</strong> para abrir uma mensagem pronta no WhatsApp.</span>
+            }
+          </div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
             <button type="submit" className="btn btn-primary"><Icon name="check" />Registrar Fiado</button>
@@ -2527,8 +2601,35 @@ export default function App() {
   async function removerEncomenda(id) { await deleteDoc(doc(db, "encomendas", id)); }
 
   // Fiado
-  async function adicionarFiado(f) { const id = uid(); await setDoc(doc(db, "fiados", id), { ...f, id, criadoEm: new Date().toISOString() }); }
-  async function pagarFiado(id) { const f = fiados.find(x => x.id === id); if (f) await setDoc(doc(db, "fiados", id), { ...f, status: "pago", dataPagamento: hojeLocal() }); toast("Marcado como pago! ✓"); }
+  async function adicionarFiado(f) {
+    const id = uid();
+    await setDoc(doc(db, "fiados", id), { ...f, id, criadoEm: new Date().toISOString() });
+    // Baixa estoque imediatamente
+    if (f.produtoId) {
+      if (f.varianteId) {
+        const variante = variantesProduto.find(v => v.id === f.varianteId);
+        if (variante) await setDoc(doc(db, "variantesProduto", variante.id), { ...variante, estoque: Math.max(0, variante.estoque - (f.quantidade || 1)) });
+      } else {
+        const prod = produtos.find(p => p.id === f.produtoId);
+        if (prod) await setDoc(doc(db, "produtos", prod.id), { ...prod, quantidadeEstoque: Math.max(0, prod.quantidadeEstoque - (f.quantidade || 1)) });
+      }
+    }
+  }
+  async function pagarFiado(id) {
+    const f = fiados.find(x => x.id === id);
+    if (!f) return;
+    await setDoc(doc(db, "fiados", id), { ...f, status: "pago", dataPagamento: hojeLocal() });
+    // Só entra no faturamento quando pago
+    const tId = uid();
+    const nomeProd = f.produtoId ? (produtos.find(p => p.id === f.produtoId)?.nome || "") : "";
+    const descricao = nomeProd ? `Fiado recebido — ${f.nome} (${f.quantidade || 1}x ${nomeProd})` : `Fiado recebido — ${f.nome}`;
+    await setDoc(doc(db, "transacoes", tId), {
+      id: tId, tipo: "venda", descricao, valor: f.valor,
+      cliente: f.nome, data: hojeLocal(), observacoes: f.observacoes || "",
+      quantidade: f.quantidade || 1, fiadoId: id,
+    });
+    toast("Marcado como pago! Valor adicionado ao faturamento ✓");
+  }
   async function removerFiado(id) { await deleteDoc(doc(db, "fiados", id)); }
 
   // Venda com carrinho (múltiplos itens)
@@ -2623,7 +2724,7 @@ export default function App() {
     if (page === "relatorio") return <RelatorioPDF dados={dados} />;
     if (page === "compras") return <Compras compras={compras} onAdicionar={adicionarCompra} onReceber={receberCompra} onRemover={removerCompra} />;
     if (page === "encomendas") return <Encomendas encomendas={encomendas} onAdicionar={adicionarEncomenda} onAtualizar={atualizarEncomenda} onRemover={removerEncomenda} />;
-    if (page === "fiado") return <Fiado fiados={fiados} onAdicionar={adicionarFiado} onPagar={pagarFiado} onRemover={removerFiado} />;
+    if (page === "fiado") return <Fiado fiados={fiados} onAdicionar={adicionarFiado} onPagar={pagarFiado} onRemover={removerFiado} dados={dados} />;
     if (page === "usuarios" && isDono) return <GerenciarUsuarios usuarioAtual={usuario} />;
   }
 
