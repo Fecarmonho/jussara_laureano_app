@@ -6,13 +6,12 @@ import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, getDocs }
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged } from "firebase/auth";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyB2t0DPn-t_-bYuEJKd3X0h8j6v6bSTuAg",
-  authDomain: "fitmgwear-app.firebaseapp.com",
-  projectId: "fitmgwear-app",
-  storageBucket: "fitmgwear-app.firebasestorage.app",
-  messagingSenderId: "324978242715",
-  appId: "1:324978242715:web:c0eae2c0ebd6ad8626c23e",
-  measurementId: "G-NF8VNZ0GXD"
+  apiKey: "AIzaSyCq9-qUUrqjdD5zbwFpj3YujeSHNkssx9c",
+  authDomain: "jussara-cookies-bd619.firebaseapp.com",
+  projectId: "jussara-cookies-bd619",
+  storageBucket: "jussara-cookies-bd619.firebasestorage.app",
+  messagingSenderId: "976231575507",
+  appId: "1:976231575507:web:99ee2558d6931ebcf18926",
 };
 
 const app = initializeApp(firebaseConfig);
@@ -45,32 +44,33 @@ function hojeLocal() {
 // CSS
 // ─────────────────────────────────────────────
 const CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600;700&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=Nunito:wght@300;400;500;600;700&display=swap');
 
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg: #0c0c0c;
-    --surface: #161616;
-    --surface2: #1e1e1e;
-    --surface3: #282828;
+    --bg: #0d0810;
+    --surface: #160f18;
+    --surface2: #1e1521;
+    --surface3: #2a1d2e;
     --border: rgba(255,255,255,0.06);
     --border2: rgba(255,255,255,0.1);
-    --text: #f2f2f2;
-    --text2: #888;
-    --accent: #e8b84b;
-    --accent2: #f5d07a;
+    --text: #f5eef8;
+    --text2: #9a7ea8;
+    --accent: #e8437a;
+    --accent2: #f272a0;
     --green: #3ecf8e;
     --red: #f06060;
     --yellow: #f5a623;
-    --blue: #4da6ff;
+    --blue: #c084e8;
     --sidebar-w: 260px;
     --radius: 10px;
     --radius-sm: 7px;
   }
 
-  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; line-height: 1.5; min-height: 100vh; }
-  h1,h2,h3,h4 { font-family: 'Bebas Neue', sans-serif; letter-spacing: 1px; }
+  body { background: var(--bg); color: var(--text); font-family: 'Nunito', sans-serif; line-height: 1.5; min-height: 100vh; }
+  body::before { content: ""; position: fixed; inset: 0; background: radial-gradient(ellipse at 80% 20%, rgba(232,67,122,0.04) 0%, transparent 60%), radial-gradient(ellipse at 20% 80%, rgba(192,132,232,0.04) 0%, transparent 60%); pointer-events: none; z-index: 0; }
+  h1,h2,h3,h4 { font-family: 'Playfair Display', serif; letter-spacing: 1px; }
 
   ::-webkit-scrollbar { width: 4px; height: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -89,18 +89,18 @@ const CSS = `
   .sidebar-logo { padding: 22px 20px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
   .logo-img { width: 38px; height: 38px; border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; flex-shrink: 0; }
   .logo-img img { width: 100%; height: 100%; object-fit: contain; }
-  .logo-name { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
+  .logo-name { font-family: 'Playfair Display', serif; font-size: 20px; letter-spacing: 2px; color: var(--accent); line-height: 1; }
   .logo-sub { font-size: 10px; color: var(--text2); letter-spacing: 1px; text-transform: uppercase; margin-top: 2px; }
 
   .sidebar-nav { flex: 1; overflow-y: auto; padding: 14px 10px; }
   .nav-label { font-size: 10px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 1.2px; padding: 10px 10px 4px; }
   .nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-size: 13.5px; font-weight: 500; transition: all 0.15s; user-select: none; border-left: 2px solid transparent; margin-bottom: 2px; }
   .nav-item:hover { background: var(--surface2); color: var(--text); }
-  .nav-item.active { background: rgba(232,184,75,0.08); color: var(--accent2); border-left-color: var(--accent); }
+  .nav-item.active { background: rgba(232,67,122,0.08); color: var(--accent2); border-left-color: var(--accent); }
   .nav-item svg { width: 16px; height: 16px; flex-shrink: 0; }
 
   .sidebar-footer { padding: 12px 10px 16px; border-top: 1px solid var(--border); }
-  .footer-btn { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-size: 12.5px; font-weight: 500; background: none; border: none; width: 100%; text-align: left; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .footer-btn { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: var(--radius-sm); cursor: pointer; color: var(--text2); font-size: 12.5px; font-weight: 500; background: none; border: none; width: 100%; text-align: left; transition: all 0.15s; font-family: 'Nunito', sans-serif; }
   .footer-btn:hover { background: var(--surface2); color: var(--text); }
   .footer-btn.danger:hover { color: var(--red); background: rgba(240,96,96,0.07); }
   .footer-btn svg { width: 14px; height: 14px; }
@@ -115,7 +115,7 @@ const CSS = `
 
   .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
   .card-header { padding: 18px 20px 0; display: flex; align-items: center; justify-content: space-between; }
-  .card-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--text2); }
+  .card-title { font-family: 'Playfair Display', serif; font-size: 16px; letter-spacing: 1px; color: var(--text2); }
   .card-body { padding: 18px 20px; }
 
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 28px; }
@@ -128,17 +128,17 @@ const CSS = `
   .stat-card.gold::after  { background: linear-gradient(90deg, var(--accent), transparent); }
   .stat-card.green { border-color: rgba(62,207,142,0.2); }
   .stat-card.red   { border-color: rgba(240,96,96,0.2); }
-  .stat-card.blue  { border-color: rgba(77,166,255,0.2); }
-  .stat-card.gold  { border-color: rgba(232,184,75,0.2); }
+  .stat-card.blue  { border-color: rgba(192,132,232,0.2); }
+  .stat-card.gold  { border-color: rgba(232,67,122,0.2); }
   .stat-label { font-size: 12px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.9px; margin-bottom: 14px; font-weight: 700; }
-  .stat-value { font-family: 'Bebas Neue', sans-serif; font-size: 38px; letter-spacing: 1px; line-height: 1; }
+  .stat-value { font-family: 'Playfair Display', serif; font-size: 38px; letter-spacing: 1px; line-height: 1; }
   .stat-card.green .stat-value { color: var(--green); }
   .stat-card.red .stat-value   { color: var(--red); }
   .stat-card.blue .stat-value  { color: var(--blue); }
   .stat-card.gold .stat-value  { color: var(--accent); }
   .stat-sub { font-size: 12px; color: var(--text2); margin-top: 8px; }
 
-  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; text-decoration: none; white-space: nowrap; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 9px 18px; border-radius: var(--radius-sm); font-family: 'Nunito', sans-serif; font-size: 13.5px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; text-decoration: none; white-space: nowrap; }
   .btn svg { width: 15px; height: 15px; }
   .btn-primary { background: var(--accent); color: #000; }
   .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); }
@@ -148,8 +148,8 @@ const CSS = `
   .btn-success:hover { background: rgba(62,207,142,0.22); }
   .btn-danger { background: rgba(240,96,96,0.1); color: var(--red); border: 1px solid rgba(240,96,96,0.2); }
   .btn-danger:hover { background: rgba(240,96,96,0.2); }
-  .btn-info { background: rgba(77,166,255,0.1); color: var(--blue); border: 1px solid rgba(77,166,255,0.2); }
-  .btn-info:hover { background: rgba(77,166,255,0.2); }
+  .btn-info { background: rgba(192,132,232,0.1); color: var(--blue); border: 1px solid rgba(192,132,232,0.2); }
+  .btn-info:hover { background: rgba(192,132,232,0.2); }
   .btn-whatsapp { background: #25d366; color: #fff; border: none; }
   .btn-whatsapp:hover { background: #20ba57; transform: translateY(-1px); }
   .btn-sm { padding: 6px 13px; font-size: 12px; }
@@ -160,7 +160,7 @@ const CSS = `
 
   .input-group { display: flex; flex-direction: column; gap: 6px; }
   .input-label { font-size: 11.5px; font-weight: 700; color: var(--text2); text-transform: uppercase; letter-spacing: 0.6px; }
-  .input { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 13px; color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13.5px; width: 100%; transition: border-color 0.15s; outline: none; }
+  .input { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 10px 13px; color: var(--text); font-family: 'Nunito', sans-serif; font-size: 13.5px; width: 100%; transition: border-color 0.15s; outline: none; }
   .input:focus { border-color: var(--accent); }
   .input::placeholder { color: var(--text2); }
   select.input { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; padding-right: 30px; }
@@ -174,7 +174,7 @@ const CSS = `
   .margem-preview { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 16px; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
   .margem-item { display: flex; flex-direction: column; gap: 2px; }
   .margem-item-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.5px; }
-  .margem-item-value { font-family: 'Bebas Neue', sans-serif; font-size: 18px; }
+  .margem-item-value { font-family: 'Playfair Display', serif; font-size: 18px; }
 
   .table-wrap { overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; }
@@ -187,15 +187,15 @@ const CSS = `
   .badge-green  { background: rgba(62,207,142,0.12); color: var(--green); }
   .badge-red    { background: rgba(240,96,96,0.12); color: var(--red); }
   .badge-yellow { background: rgba(245,166,35,0.12); color: var(--yellow); }
-  .badge-blue   { background: rgba(77,166,255,0.12); color: var(--blue); }
-  .badge-gold   { background: rgba(232,184,75,0.12); color: var(--accent); }
+  .badge-blue   { background: rgba(192,132,232,0.12); color: var(--blue); }
+  .badge-gold   { background: rgba(232,67,122,0.12); color: var(--accent); }
   .badge-purple { background: rgba(167,139,250,0.12); color: #a78bfa; }
 
   .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 200; padding: 20px; animation: fadeIn 0.15s; }
   .modal { background: var(--surface); border: 1px solid var(--border2); border-radius: var(--radius); width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto; animation: slideUp 0.2s cubic-bezier(.34,1.56,.64,1); }
   .modal-wide { max-width: 760px; }
   .modal-header { padding: 22px 24px 0; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
-  .modal-title { font-family: 'Bebas Neue', sans-serif; font-size: 20px; letter-spacing: 1px; }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 20px; letter-spacing: 1px; }
   .modal-body { padding: 0 24px 24px; }
   @keyframes fadeIn { from{opacity:0} to{opacity:1} }
   @keyframes slideUp { from{opacity:0;transform:translateY(20px) scale(0.97)} to{opacity:1;transform:none} }
@@ -208,7 +208,7 @@ const CSS = `
   .login-logo { display:flex; align-items:center; gap:14px; margin-bottom:28px; }
   .login-logo-img { width:56px; height:56px; border-radius:12px; background:#fff; display:flex; align-items:center; justify-content:center; overflow:hidden; }
   .login-logo-img img { width:100%; height:100%; object-fit:contain; }
-  .login-logo-text h1 { font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:3px; color:var(--accent); line-height:1; }
+  .login-logo-text h1 { font-family:'Playfair Display',serif; font-size:28px; letter-spacing:3px; color:var(--accent); line-height:1; }
   .login-logo-text p { font-size:12px; color:var(--text2); margin-top:2px; }
 
   .toast-container { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:8px; }
@@ -226,8 +226,8 @@ const CSS = `
   .usuario-nome { font-size: 14px; font-weight: 700; color: var(--text); word-break: break-word; }
   .usuario-email { font-size: 12px; color: var(--text2); word-break: break-all; margin-top: 2px; }
   .usuario-role { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 99px; }
-  .role-dono { background: rgba(232,184,75,0.15); color: var(--accent); }
-  .role-func { background: rgba(77,166,255,0.12); color: var(--blue); }
+  .role-dono { background: rgba(232,67,122,0.15); color: var(--accent); }
+  .role-func { background: rgba(192,132,232,0.12); color: var(--blue); }
 
   .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.65); z-index:99; }
   .empty-state { padding:52px; text-align:center; color:var(--text2); }
@@ -238,10 +238,10 @@ const CSS = `
   .mobile-logo { display: flex; align-items: center; gap: 10px; flex: 1; }
   .mobile-logo-img { width: 32px; height: 32px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
   .mobile-logo-img img { width: 100%; height: 100%; object-fit: contain; }
-  .mobile-logo-name { font-family: 'Bebas Neue', sans-serif; font-size: 18px; letter-spacing: 1.5px; color: var(--accent); line-height: 1; }
+  .mobile-logo-name { font-family: 'Playfair Display', serif; font-size: 18px; letter-spacing: 1.5px; color: var(--accent); line-height: 1; }
   .mobile-menu-btn svg { width:18px; height:18px; display:block; }
   .confirm-dialog { background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius); padding:26px; max-width:420px; width:100%; }
-  .confirm-title { font-family:'Bebas Neue',sans-serif; font-size:18px; letter-spacing:1px; margin-bottom:10px; }
+  .confirm-title { font-family:'Playfair Display',serif; font-size:18px; letter-spacing:1px; margin-bottom:10px; }
   .confirm-text { font-size:13px; color:var(--text2); margin-bottom:22px; }
   .confirm-actions { display:flex; gap:10px; justify-content:flex-end; }
   .product-thumb { width:36px; height:36px; border-radius:8px; background:var(--surface3); display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; }
@@ -249,21 +249,21 @@ const CSS = `
   .tags-selector { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
   .tag-opt { padding: 5px 12px; border-radius: 99px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid var(--border2); background: var(--surface2); color: var(--text2); transition: all 0.15s; user-select: none; }
   .tag-opt:hover { border-color: var(--accent); color: var(--accent); }
-  .tag-opt.selected { background: rgba(232,184,75,0.15); border-color: var(--accent); color: var(--accent); }
+  .tag-opt.selected { background: rgba(232,67,122,0.15); border-color: var(--accent); color: var(--accent); }
 
   .loading-screen { min-height:100vh; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:16px; background:var(--bg); }
   .spinner { width:32px; height:32px; border:3px solid var(--border2); border-top-color:var(--accent); border-radius:50%; animation:spin 0.7s linear infinite; }
   @keyframes spin { to{transform:rotate(360deg)} }
 
   .produto-pai-row td { background: var(--surface); }
-  .produto-pai-row:hover td { background: rgba(232,184,75,0.03) !important; }
+  .produto-pai-row:hover td { background: rgba(232,67,122,0.03) !important; }
   .produto-expand-btn { background: none; border: 1px solid var(--border2); border-radius: 6px; padding: 4px 8px; cursor: pointer; color: var(--text2); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; white-space: nowrap; }
   .produto-expand-btn:hover { border-color: var(--accent); color: var(--accent); }
   .variante-row td { background: rgba(255,255,255,0.015); padding-top: 9px; padding-bottom: 9px; }
   .variante-row:hover td { background: rgba(255,255,255,0.03) !important; }
   .variante-indent { padding-left: 52px !important; }
   .variante-label { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text2); }
-  .variante-label-badge { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: rgba(77,166,255,0.1); color: var(--blue); border: 1px solid rgba(77,166,255,0.2); }
+  .variante-label-badge { padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 700; background: rgba(192,132,232,0.1); color: var(--blue); border: 1px solid rgba(192,132,232,0.2); }
 
   .variante-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
   .variante-item { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -276,22 +276,22 @@ const CSS = `
   .variante-grade-chips { display: flex; flex-wrap: wrap; gap: 8px; }
   .variante-chip { padding: 7px 16px; border-radius: 99px; font-size: 13px; font-weight: 700; border: 1.5px solid var(--border2); background: var(--surface2); color: var(--text2); cursor: pointer; transition: all 0.15s; user-select: none; position: relative; }
   .variante-chip:hover:not(.disabled) { border-color: var(--accent); color: var(--accent); }
-  .variante-chip.active { border-color: var(--accent); background: rgba(232,184,75,0.12); color: var(--accent); }
-  .variante-chip.active-cor { border-color: var(--blue); background: rgba(77,166,255,0.12); color: var(--blue); }
+  .variante-chip.active { border-color: var(--accent); background: rgba(232,67,122,0.12); color: var(--accent); }
+  .variante-chip.active-cor { border-color: var(--blue); background: rgba(192,132,232,0.12); color: var(--blue); }
   .variante-chip.disabled { opacity: 0.35; cursor: not-allowed; text-decoration: line-through; }
   .variante-chip-estoque { position: absolute; top: -6px; right: -4px; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 99px; background: var(--yellow); color: #000; line-height: 1.4; }
   .variante-chip-estoque.zero { background: var(--red); color: #fff; }
-  .variante-resultado { margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(232,184,75,0.07); border: 1px solid rgba(232,184,75,0.25); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+  .variante-resultado { margin-top: 12px; padding: 10px 14px; border-radius: var(--radius-sm); background: rgba(232,67,122,0.07); border: 1px solid rgba(232,67,122,0.25); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
   .variante-resultado-nome { font-size: 13px; font-weight: 700; color: var(--accent); }
 
-  .info-box { background: rgba(77,166,255,0.07); border: 1px solid rgba(77,166,255,0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--text2); }
+  .info-box { background: rgba(192,132,232,0.07); border: 1px solid rgba(192,132,232,0.2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--text2); }
   .warn-box { background: rgba(245,166,35,0.07); border: 1px solid rgba(245,166,35,0.25); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 12px; color: var(--yellow); }
 
   .compra-card { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 16px 18px; display: flex; align-items: flex-start; gap: 14px; transition: box-shadow 0.15s; }
   .compra-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,0.25); }
   .compra-card-info { flex: 1; min-width: 0; }
   .compra-card-fornecedor { font-size: 14px; font-weight: 700; color: var(--text); }
-  .compra-card-valor { font-family: 'Bebas Neue', sans-serif; font-size: 22px; color: var(--accent); margin-top: 2px; }
+  .compra-card-valor { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--accent); margin-top: 2px; }
   .compra-card-meta { font-size: 12px; color: var(--text2); margin-top: 4px; }
   .compra-card-obs { font-size: 12px; color: var(--text2); margin-top: 6px; font-style: italic; border-left: 2px solid var(--border2); padding-left: 8px; }
   .compra-card-actions { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
@@ -299,7 +299,7 @@ const CSS = `
 
   /* ── CARRINHO DE COMPRAS ── */
   .cart-section { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius); padding: 18px; margin-bottom: 20px; }
-  .cart-section-title { font-family: 'Bebas Neue', sans-serif; font-size: 16px; letter-spacing: 1px; color: var(--text2); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+  .cart-section-title { font-family: 'Playfair Display', serif; font-size: 16px; letter-spacing: 1px; color: var(--text2); margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
   .cart-add-row { display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; align-items: flex-end; }
   .cart-item-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); margin-top: 8px; }
   .cart-item-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); }
@@ -307,7 +307,7 @@ const CSS = `
   .cart-item-price { font-size: 13px; font-weight: 700; color: var(--accent); min-width: 90px; text-align: right; }
   .cart-total-row { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
   .cart-total-label { font-size: 13px; color: var(--text2); font-weight: 700; }
-  .cart-total-value { font-family: 'Bebas Neue', sans-serif; font-size: 26px; color: var(--accent); }
+  .cart-total-value { font-family: 'Playfair Display', serif; font-size: 26px; color: var(--accent); }
   .cart-empty { text-align: center; padding: 22px; color: var(--text2); font-size: 13px; }
 
   @media (max-width: 1200px) {
@@ -490,18 +490,19 @@ function LoginScreen({ primeiroAcesso }) {
   return (
     <div className="login-page">
       <div className="login-bg">
-        <div className="login-blob" style={{ width: 500, height: 500, background: "#e8b84b", top: -150, right: -150 }} />
-        <div className="login-blob" style={{ width: 400, height: 400, background: "#3ecf8e", bottom: -100, left: -100 }} />
+        <div className="login-blob" style={{ width: 500, height: 500, background: "#e8437a", top: -150, right: -150 }} />
+        <div className="login-blob" style={{ width: 400, height: 400, background: "#c084e8", bottom: -100, left: -100 }} />
+        <div className="login-blob" style={{ width: 300, height: 300, background: "#f272a0", top: "40%", left: -80 }} />
       </div>
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-img"><img src={logoImg} alt="FitMGwear" /></div>
-          <div className="login-logo-text"><h1>FITMGWEAR</h1><p>Sistema de Gestão</p></div>
+          <div className="login-logo-img"><img src={logoImg} alt="Jussara Cookies" /></div>
+          <div className="login-logo-text"><h1>JUSSARA COOKIES</h1><p>Confeitaria Artesanal 🍪</p></div>
         </div>
         {primeiroAcesso ? (
           <>
-            <div style={{ background: "rgba(232,184,75,0.08)", border: "1px solid rgba(232,184,75,0.25)", borderRadius: "var(--radius-sm)", padding: "10px 14px", fontSize: 13, color: "var(--accent)", marginBottom: 20 }}>
-              👋 Primeira vez? Crie a conta do dono.
+            <div style={{ background: "rgba(232,67,122,0.08)", border: "1px solid rgba(232,67,122,0.25)", borderRadius: "var(--radius-sm)", padding: "10px 14px", fontSize: 13, color: "var(--accent)", marginBottom: 20 }}>
+              🍪 Primeira vez? Crie a conta da proprietária.
             </div>
             {erro && <div className="login-error">⚠️ {erro}</div>}
             <form onSubmit={criarDono}>
@@ -638,7 +639,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Usuários</h1><p className="page-sub">Gerencie quem tem acesso ao sistema</p></div>
+        <div><h1 className="page-title">Usuários</h1><p className="page-sub">Gerencie quem tem acesso ao sistema Jussara Cookies</p></div>
         <button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="plus" />Novo Usuário</button>
       </div>
       <div className="card"><div className="card-body">
@@ -650,7 +651,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
               {usuarios.map(u => (
                 <div key={u.id} className="usuario-card">
                   <div className="usuario-card-top">
-                    <div className="usuario-avatar" style={{ background: u.cargo === "dono" ? "rgba(232,184,75,0.15)" : "rgba(77,166,255,0.12)", color: u.cargo === "dono" ? "var(--accent)" : "var(--blue)" }}>
+                    <div className="usuario-avatar" style={{ background: u.cargo === "dono" ? "rgba(232,67,122,0.15)" : "rgba(192,132,232,0.12)", color: u.cargo === "dono" ? "var(--accent)" : "var(--blue)" }}>
                       {(u.nome || "?")[0].toUpperCase()}
                     </div>
                     <div className="usuario-info">
@@ -660,7 +661,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
                   </div>
                   <div style={{ borderTop: "1px solid var(--border)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
                     <span className={`usuario-role ${u.cargo === "dono" ? "role-dono" : "role-func"}`} style={{ alignSelf: "flex-start" }}>
-                      {u.cargo === "dono" ? "👑 Dono" : "👤 Funcionário"}
+                      {u.cargo === "dono" ? "👑 Proprietária" : "👤 Funcionário"}
                     </span>
                     {u.uid === usuarioAtual?.uid
                       ? <span style={{ fontSize: 11, color: "var(--text2)", padding: "4px 8px", borderRadius: 99, background: "var(--surface3)", alignSelf: "flex-start" }}>Você</span>
@@ -810,7 +811,7 @@ function RelatorioPDF({ dados }) {
       const h = val > 0 ? Math.max(4, (val / maxVal) * chartH) : 2;
       const x = (parseInt(dia) - 1) * (barW + gap);
       const y = chartH - h;
-      const cor = val > 0 ? "#e8b84b" : "#e5e7eb";
+      const cor = val > 0 ? "#e8437a" : "#e5e7eb";
       return `<rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" fill="${cor}"/>${val > 0 ? `<text x="${x + barW / 2}" y="${y - 3}" text-anchor="middle" font-size="7" fill="#666">${formatBRL(val).replace("R$\u00a0","").replace("R$ ","")}</text>` : ""}`;
     }).join("");
     const labelsSVG = Object.keys(vendasPorDia).filter(d => parseInt(d) % 5 === 0 || parseInt(d) === 1).map(dia => {
@@ -832,7 +833,7 @@ function RelatorioPDF({ dados }) {
           <td>
             <div style="font-weight:600;font-size:12px">${p.nome}</div>
             <div style="background:#f3f4f6;border-radius:99px;height:5px;margin-top:4px;overflow:hidden">
-              <div style="background:#e8b84b;height:5px;width:${barPct}%;border-radius:99px"></div>
+              <div style="background:#e8437a;height:5px;width:${barPct}%;border-radius:99px"></div>
             </div>
           </td>
           <td style="text-align:center;font-weight:600;color:#374151">${p.quantidade} un.</td>
@@ -856,21 +857,21 @@ function RelatorioPDF({ dados }) {
 
     // ── Compras ──
     const linhasCompras = comprasMes.map(c =>
-      `<tr><td style="color:#6b7280">${formatData(c.data)}</td><td>${c.fornecedor}</td><td style="text-align:right;font-weight:700;color:#e8b84b">${formatBRL(c.valor)}</td><td style="color:${c.status === "recebido" ? "#16a34a" : "#d97706"}">${c.status === "recebido" ? "✓ Recebido" : "⏳ Aguardando"}</td></tr>`
+      `<tr><td style="color:#6b7280">${formatData(c.data)}</td><td>${c.fornecedor}</td><td style="text-align:right;font-weight:700;color:#e8437a">${formatBRL(c.valor)}</td><td style="color:${c.status === "recebido" ? "#16a34a" : "#d97706"}">${c.status === "recebido" ? "✓ Recebido" : "⏳ Aguardando"}</td></tr>`
     ).join("");
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Relatório FitMGwear — ${nomeMesCap}</title>
+<title>Relatório Jussara Cookies — ${nomeMesCap}</title>
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{font-family:'Segoe UI',Arial,sans-serif;font-size:12px;color:#111827;background:#fff;padding:0}
   .page{padding:36px 40px}
   /* HEADER */
-  .report-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:20px;border-bottom:3px solid #e8b84b;margin-bottom:28px}
-  .brand h1{font-size:30px;font-weight:900;letter-spacing:4px;color:#e8b84b;line-height:1}
+  .report-header{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:20px;border-bottom:3px solid #e8437a;margin-bottom:28px}
+  .brand h1{font-size:30px;font-weight:900;letter-spacing:2px;color:#e8437a;line-height:1}
   .brand p{font-size:12px;color:#6b7280;margin-top:3px;letter-spacing:1px}
   .report-meta{text-align:right}
   .report-meta .period{font-size:18px;font-weight:800;color:#111827;line-height:1}
@@ -886,7 +887,7 @@ function RelatorioPDF({ dados }) {
   .kpi-green{border-color:#bbf7d0}.kpi-green::after{background:#16a34a}
   .kpi-red{border-color:#fecaca}.kpi-red::after{background:#dc2626}
   .kpi-blue{border-color:#bfdbfe}.kpi-blue::after{background:#2563eb}
-  .kpi-gold{border-color:#fde68a}.kpi-gold::after{background:#e8b84b}
+  .kpi-gold{border-color:#fde68a}.kpi-gold::after{background:#e8437a}
   .kpi-purple{border-color:#e9d5ff}.kpi-purple::after{background:#7c3aed}
   .kpi-teal{border-color:#99f6e4}.kpi-teal::after{background:#0d9488}
   .kpi-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#9ca3af;margin-bottom:8px}
@@ -895,7 +896,7 @@ function RelatorioPDF({ dados }) {
   .kpi-green .kpi-value{color:#16a34a}
   .kpi-red .kpi-value{color:#dc2626}
   .kpi-blue .kpi-value{color:#2563eb}
-  .kpi-gold .kpi-value{color:#e8b84b}
+  .kpi-gold .kpi-value{color:#e8437a}
   .kpi-purple .kpi-value{color:#7c3aed}
   .kpi-teal .kpi-value{color:#0d9488}
   /* CHART */
@@ -908,7 +909,7 @@ function RelatorioPDF({ dados }) {
   td{padding:9px 12px;border-bottom:1px solid #f3f4f6;font-size:11px;vertical-align:middle}
   tr:last-child td{border-bottom:none}
   tr:hover td{background:#fafafa}
-  .tfoot-row td{background:#f9fafb;font-weight:700;border-top:2px solid #e8b84b;font-size:12px}
+  .tfoot-row td{background:#f9fafb;font-weight:700;border-top:2px solid #e8437a;font-size:12px}
   /* ALERT */
   .alert{border-radius:8px;padding:10px 14px;font-size:11px;margin-bottom:16px}
   .alert-warn{background:#fffbeb;border:1px solid #fbbf24;color:#92400e}
@@ -927,7 +928,7 @@ function RelatorioPDF({ dados }) {
   <!-- HEADER -->
   <div class="report-header">
     <div class="brand">
-      <h1>FITMGWEAR</h1>
+      <h1>JUSSARA COOKIES</h1>
       <p>Relatório Financeiro Mensal</p>
     </div>
     <div class="report-meta">
@@ -1026,7 +1027,7 @@ function RelatorioPDF({ dados }) {
   <!-- 4. TRANSAÇÕES -->
   <div class="section">
     <div class="section-title"><span>💳</span>4. Transações do Mês (${transacoesFiltradas.length})</div>
-    ${produtosAbaixo.length > 0 ? `<div class="alert alert-warn">⚠️ Estoque crítico: ${produtosAbaixo.map(p => `<strong>${p.nome}</strong> (${p.estoque} un.)`).join(", ")}</div>` : ""}
+    ${produtosAbaixo.length > 0 ? `<div class="alert alert-warn">⚠️ Sabores com estoque baixo: ${produtosAbaixo.map(p => `<strong>${p.nome}</strong> (${p.estoque} un.)`).join(", ")}</div>` : ""}
     ${transacoesFiltradas.length === 0
       ? "<p style='color:#aaa;font-size:12px'>Nenhuma transação neste mês.</p>"
       : `<table>
@@ -1044,7 +1045,7 @@ function RelatorioPDF({ dados }) {
   <div class="section">
     <div class="section-title"><span>📦</span>5. Estoque Atual (${produtos.length} produtos)</div>
     ${produtos.length === 0
-      ? "<p style='color:#aaa;font-size:12px'>Nenhum produto cadastrado.</p>"
+      ? "<p style='color:#aaa;font-size:12px'>Nenhum sabor/produto cadastrado.</p>"
       : `<table>
           <thead><tr><th>Produto</th><th style="text-align:center">Estoque</th><th style="text-align:right">Preço Venda</th><th style="text-align:center">Margem</th></tr></thead>
           <tbody>${linhasProd}</tbody>
@@ -1060,14 +1061,14 @@ function RelatorioPDF({ dados }) {
       : `<table>
           <thead><tr><th>Data</th><th>Fornecedor</th><th style="text-align:right">Valor</th><th>Status</th></tr></thead>
           <tbody>${linhasCompras}</tbody>
-          <tfoot><tr class="tfoot-row"><td colspan="2">Total</td><td style="text-align:right;color:#e8b84b">${formatBRL(totalComprasMes)}</td><td>${comprasPendentesMes > 0 ? `⏳ ${comprasPendentesMes} aguardando` : "✓ Todos recebidos"}</td></tr></tfoot>
+          <tfoot><tr class="tfoot-row"><td colspan="2">Total</td><td style="text-align:right;color:#e8437a">${formatBRL(totalComprasMes)}</td><td>${comprasPendentesMes > 0 ? `⏳ ${comprasPendentesMes} aguardando` : "✓ Todos recebidos"}</td></tr></tfoot>
         </table>`
     }
   </div>
 
   <!-- FOOTER -->
   <div class="report-footer">
-    <span>FitMGwear — Sistema de Gestão</span>
+    <span>Jussara Cookies — Sistema de Gestão — Cookies 🍪</span>
     <span>Relatório referente a ${nomeMesCap}</span>
     <span>Gerado em ${hoje}</span>
   </div>
@@ -1198,12 +1199,12 @@ function gerarBalancoPDF(produtos, variantesProduto) {
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Balanço de Estoque — FitMGwear</title>
+<title>Balanço de Estoque — Jussara Cookies</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: Arial, sans-serif; font-size: 12px; color: #1a1a1a; padding: 32px; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid #e8b84b; }
-  h1 { font-size: 28px; font-weight: 900; letter-spacing: 3px; color: #e8b84b; line-height: 1; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 3px solid #e8437a; }
+  h1 { font-size: 28px; font-weight: 900; letter-spacing: 3px; color: #e8437a; line-height: 1; }
   .sub { font-size: 13px; color: #666; margin-top: 4px; }
   .date { text-align: right; font-size: 11px; color: #666; }
   .stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
@@ -1212,11 +1213,11 @@ function gerarBalancoPDF(produtos, variantesProduto) {
   .stat-value { font-size: 22px; font-weight: 900; line-height: 1; }
   .stat-sub { font-size: 10px; color: #9ca3af; margin-top: 4px; }
   .green { color: #16a34a; } .red { color: #dc2626; } .blue { color: #2563eb; } .gold { color: #d97706; } .purple { color: #7c3aed; }
-  h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 10px; color: #374151; border-bottom: 2px solid #e8b84b; padding-bottom: 4px; }
+  h2 { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin: 22px 0 10px; color: #374151; border-bottom: 2px solid #e8437a; padding-bottom: 4px; }
   table { width: 100%; border-collapse: collapse; }
   th { text-align: left; padding: 9px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; background: #f9fafb; border-bottom: 2px solid #e5e7eb; color: #6b7280; letter-spacing: 0.5px; }
   td { padding: 10px; border-bottom: 1px solid #f3f4f6; font-size: 11px; vertical-align: middle; }
-  .total-row td { background: #f9fafb; font-weight: 700; border-top: 2px solid #e8b84b; font-size: 12px; }
+  .total-row td { background: #f9fafb; font-weight: 700; border-top: 2px solid #e8437a; font-size: 12px; }
   .aviso { background: #fffbeb; border: 1px solid #fbbf24; border-radius: 6px; padding: 10px 14px; font-size: 11px; color: #92400e; margin-bottom: 16px; }
   .footer { margin-top: 32px; font-size: 10px; color: #9ca3af; text-align: center; border-top: 1px solid #e5e7eb; padding-top: 12px; }
 </style>
@@ -1224,7 +1225,7 @@ function gerarBalancoPDF(produtos, variantesProduto) {
 <body>
 <div class="header">
   <div>
-    <h1>FITMGWEAR</h1>
+    <h1>JUSSARA COOKIES</h1>
     <div class="sub">Balanço de Estoque</div>
   </div>
   <div class="date">Gerado em: ${dataHoje} às ${horaHoje}</div>
@@ -1244,7 +1245,7 @@ function gerarBalancoPDF(produtos, variantesProduto) {
   <div class="stat">
     <div class="stat-label">Custo Total Estoque</div>
     <div class="stat-value purple">${formatBRL(totalCustoEstoque)}</div>
-    <div class="stat-sub">valor investido</div>
+    <div class="stat-sub">custo investido</div>
   </div>
   <div class="stat">
     <div class="stat-label">Valor de Venda Total</div>
@@ -1267,7 +1268,7 @@ function gerarBalancoPDF(produtos, variantesProduto) {
 </div>
 
 <h2>📦 Produtos em Estoque (${produtos.length})</h2>
-${produtos.length === 0 ? "<p style='color:#aaa;padding:20px 0'>Nenhum produto cadastrado.</p>" : `
+${produtos.length === 0 ? "<p style='color:#aaa;padding:20px 0'>Nenhum sabor/produto cadastrado.</p>" : `
 <table>
   <thead>
     <tr>
@@ -1295,7 +1296,7 @@ ${produtos.length === 0 ? "<p style='color:#aaa;padding:20px 0'>Nenhum produto c
   </tbody>
 </table>
 `}
-<div class="footer">FitMGwear Sistema de Gestão — Balanço gerado em ${dataHoje}</div>
+<div class="footer">Jussara Cookies Sistema de Gestão — Cookies 🍪 — Balanço gerado em ${dataHoje}</div>
 </body></html>`;
 
   const win = window.open("", "_blank");
@@ -1339,7 +1340,7 @@ function Dashboard({ dados }) {
 
   return (
     <div>
-      <div className="page-header"><div><h1 className="page-title">Painel de Controle</h1><p className="page-sub">Visão geral do seu negócio em tempo real</p></div></div>
+      <div className="page-header"><div><h1 className="page-title">Painel de Controle</h1><p className="page-sub">Visão geral da sua confeitaria em tempo real</p></div></div>
       <div className="stats-grid">
         <div className="stat-card green"><div className="stat-label">Receitas Totais</div><div className="stat-value">{formatBRL(totalReceitas)}</div></div>
         <div className="stat-card red"><div className="stat-label">Despesas Totais</div><div className="stat-value">{formatBRL(totalDespesas)}</div></div>
@@ -1351,7 +1352,7 @@ function Dashboard({ dados }) {
         <div className="card" style={{ marginBottom: 16, borderColor: "rgba(245,166,35,0.3)", background: "rgba(245,166,35,0.04)" }}>
           <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 14 }}>
             <div style={{ fontSize: 24 }}>⚠️</div>
-            <div><div style={{ fontWeight: 700, fontSize: 14, color: "var(--yellow)" }}>Estoque crítico</div><div style={{ fontSize: 13, color: "var(--text2)" }}>{produtosAbaixo.join(", ")}</div></div>
+            <div><div style={{ fontWeight: 700, fontSize: 14, color: "var(--yellow)" }}>Sabores com estoque baixo</div><div style={{ fontSize: 13, color: "var(--text2)" }}>{produtosAbaixo.join(", ")}</div></div>
           </div>
         </div>
       )}
@@ -1367,7 +1368,7 @@ function Dashboard({ dados }) {
       )}
 
       {encomendasAtivas.length > 0 && (
-        <div className="card" style={{ marginBottom: 16, borderColor: encomendasAtrasadas.length > 0 ? "rgba(240,96,96,0.3)" : "rgba(77,166,255,0.3)", background: encomendasAtrasadas.length > 0 ? "rgba(240,96,96,0.04)" : "rgba(77,166,255,0.04)" }}>
+        <div className="card" style={{ marginBottom: 16, borderColor: encomendasAtrasadas.length > 0 ? "rgba(240,96,96,0.3)" : "rgba(192,132,232,0.3)", background: encomendasAtrasadas.length > 0 ? "rgba(240,96,96,0.04)" : "rgba(77,166,255,0.04)" }}>
           <div className="card-body" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <div style={{ fontSize: 24 }}>📦</div>
             <div>
@@ -1492,7 +1493,7 @@ function SeletorItemVenda({ dados, onAdicionarItem, estoqueReservado }) {
   function adicionar() {
     if (!podeAdicionar()) {
       if (!produtoSel) return toast("Selecione um produto", "error");
-      if (temVariantes && !varianteSel) return toast("Selecione tamanho e cor", "error");
+      if (temVariantes && !varianteSel) return toast("Selecione a variante", "error");
       if (qtd > estoqueDisp) return toast(`Estoque insuficiente! Disponível: ${estoqueDisp}`, "error");
       return;
     }
@@ -1861,7 +1862,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
     if (!form.nome.trim()) return toast("Preencha o nome", "error");
     if (!form.precoVenda || parseFloat(form.precoVenda) <= 0) return toast("Preço de venda inválido", "error");
     const d = { nome: form.nome, descricao: form.descricao, precoCompra: parseFloat(form.precoCompra) || 0, precoVenda: parseFloat(form.precoVenda), quantidadeEstoque: parseInt(form.quantidadeEstoque) || 0, quantidadeMinima: parseInt(form.quantidadeMinima) || 5, sku: form.sku };
-    if (editando) { onAtualizar(editando, d); toast("Produto atualizado"); }
+    if (editando) { onAtualizar(editando, d); toast("Produto/Sabor atualizado"); }
     else { onAdicionar(d); toast("Produto adicionado"); }
     setModal(false);
   }
@@ -1883,13 +1884,13 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Estoque</h1><p className="page-sub">Gerencie produtos e variantes</p></div>
+        <div><h1 className="page-title">Estoque</h1><p className="page-sub">Gerencie produtos, sabores e variantes</p></div>
         <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
           {/* ── BOTÃO BALANÇO PDF ── */}
           <button className="btn btn-info" onClick={() => gerarBalancoPDF(produtos, variantesProduto)}>
             <Icon name="balanco" />Balanço PDF
           </button>
-          <button className="btn btn-primary" onClick={() => abrirModal()}><Icon name="plus" /> Novo Produto</button>
+          <button className="btn btn-primary" onClick={() => abrirModal()}><Icon name="plus" /> Novo Produto/Sabor</button>
         </div>
       </div>
 
@@ -1897,14 +1898,14 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
       {produtos.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14, marginBottom: 20 }}>
           <div className="stat-card blue" style={{ padding: "16px 20px" }}>
-            <div className="stat-label">Total de Peças</div>
+            <div className="stat-label">Total em Estoque</div>
             <div className="stat-value" style={{ fontSize: 28 }}>{totalPecas}</div>
-            <div className="stat-sub">unidades em estoque</div>
+            <div className="stat-sub">unidades / receitas</div>
           </div>
           <div className="stat-card red" style={{ padding: "16px 20px" }}>
             <div className="stat-label">Custo do Estoque</div>
             <div className="stat-value" style={{ fontSize: 22 }}>{formatBRL(totalCusto)}</div>
-            <div className="stat-sub">valor investido</div>
+            <div className="stat-sub">custo investido</div>
           </div>
           <div className="stat-card green" style={{ padding: "16px 20px" }}>
             <div className="stat-label">Valor de Venda</div>
@@ -1917,7 +1918,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
       <div className="card">
         <div className="table-wrap">
           {produtos.length === 0
-            ? <div className="empty-state"><div className="empty-icon">📦</div><div className="empty-text">Nenhum produto cadastrado</div></div>
+            ? <div className="empty-state"><div className="empty-icon">📦</div><div className="empty-text">Nenhum sabor/produto cadastrado</div></div>
             : <table>
               <thead><tr><th>Produto</th><th>SKU</th><th>Compra</th><th>Venda</th><th>Estoque</th><th>Margem</th><th></th></tr></thead>
               <tbody>
@@ -1930,7 +1931,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                   const expandido = expandidos[p.id];
                   return [
                     <tr key={p.id} className="produto-pai-row">
-                      <td><div style={{ display: "flex", alignItems: "center", gap: 10 }}><div className="product-thumb">👕</div><div><div style={{ fontWeight: 700 }}>{p.nome}</div>{p.descricao && <div style={{ fontSize: 11, color: "var(--text2)" }}>{p.descricao}</div>}</div></div></td>
+                      <td><div style={{ display: "flex", alignItems: "center", gap: 10 }}><div className="product-thumb">🍪</div><div><div style={{ fontWeight: 700 }}>{p.nome}</div>{p.descricao && <div style={{ fontSize: 11, color: "var(--text2)" }}>{p.descricao}</div>}</div></div></td>
                       <td style={{ color: "var(--text2)", fontSize: 12 }}>{p.sku || "—"}</td>
                       <td>{formatBRL(p.precoCompra)}</td>
                       <td style={{ fontWeight: 700 }}>{formatBRL(p.precoVenda)}</td>
@@ -1944,7 +1945,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                       <td><span className={`badge ${margem > 30 ? "badge-green" : margem > 10 ? "badge-gold" : "badge-red"}`}>{margem.toFixed(0)}%</span></td>
                       <td>
                         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                          <button className="btn-icon" title="Gerenciar Variantes" onClick={() => { setModalVariantes(p); setNovaVariante({ label: "", estoque: "" }); setEditandoVariante(null); }} style={{ color: "var(--blue)", borderColor: "rgba(77,166,255,0.3)" }}><Icon name="variant" /></button>
+                          <button className="btn-icon" title="Gerenciar Variantes" onClick={() => { setModalVariantes(p); setNovaVariante({ label: "", estoque: "" }); setEditandoVariante(null); }} style={{ color: "var(--blue)", borderColor: "rgba(192,132,232,0.3)" }}><Icon name="variant" /></button>
                           <button className="btn-icon" onClick={() => abrirModal(p)}><Icon name="edit" /></button>
                           <button className="btn-icon danger" onClick={() => setConfirmId(p.id)}><Icon name="trash" /></button>
                         </div>
@@ -1970,7 +1971,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
         </div>
       </div>
 
-      <Modal open={modal} onClose={() => setModal(false)} title={editando ? "Editar Produto" : "Novo Produto"} wide>
+      <Modal open={modal} onClose={() => setModal(false)} title={editando ? "Editar Produto" : "Novo Produto/Sabor"} wide>
         <form onSubmit={submit}>
           <div className="form-grid form-grid-2">
             <div className="input-group" style={{ gridColumn: "1 / -1" }}><label className="input-label">Nome *</label><input className="input" value={form.nome} onChange={e => set("nome", e.target.value)} /></div>
@@ -2020,7 +2021,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
           const vars = variantesProduto.filter(v => v.produtoPaiId === modalVariantes.id);
           return (
             <div>
-              <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Cada variante é uma combinação livre, ex: <strong style={{ color: "var(--text)" }}>P/Preto</strong>, <strong style={{ color: "var(--text)" }}>G/Azul</strong>.</div>
+              <div style={{ fontSize: 13, color: "var(--text2)", marginBottom: 16 }}>Cada variante é uma combinação livre, ex: <strong style={{ color: "var(--text)" }}>100g</strong>, <strong style={{ color: "var(--text)" }}>Caixa c/12</strong>..</div>
               {vars.length === 0
                 ? <div style={{ textAlign: "center", padding: "28px 0", color: "var(--text2)", fontSize: 13 }}>Nenhuma variante ainda.</div>
                 : <div className="variante-list" style={{ marginBottom: 20 }}>
@@ -2040,7 +2041,7 @@ function Estoque({ dados, onAdicionar, onRemover, onAtualizar, onAdicionarVarian
                 <div className="input-label" style={{ marginBottom: 10 }}>Adicionar nova variante</div>
                 <form onSubmit={salvarVariante}>
                   <div className="add-variante-row">
-                    <div className="input-group" style={{ flex: 2 }}><label className="input-label">Label (ex: P/Preto)</label><input className="input" placeholder="P/Preto" value={novaVariante.label} onChange={e => setNovaVariante(p => ({ ...p, label: e.target.value }))} /></div>
+                    <div className="input-group" style={{ flex: 2 }}><label className="input-label">Label (ex: P/Preto)</label><input className="input" placeholder="100g / Caixa c/12" value={novaVariante.label} onChange={e => setNovaVariante(p => ({ ...p, label: e.target.value }))} /></div>
                     <div className="input-group" style={{ flex: 1 }}><label className="input-label">Estoque</label><input className="input" type="number" min="0" placeholder="0" value={novaVariante.estoque} onChange={e => setNovaVariante(p => ({ ...p, estoque: e.target.value }))} /></div>
                     <button type="submit" className="btn btn-primary" style={{ alignSelf: "flex-end" }}><Icon name="plus" />Adicionar</button>
                   </div>
@@ -2242,7 +2243,7 @@ function Compras({ compras, onAdicionar, onReceber, onRemover }) {
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Compras</h1><p className="page-sub">Pedidos de mercadoria</p></div>
+        <div><h1 className="page-title">Compras</h1><p className="page-sub">Ingredientes, embalagens e insumos</p></div>
         <button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="cart" />Nova Compra</button>
       </div>
       {pendentes.length > 0 && (
@@ -2264,7 +2265,7 @@ function Compras({ compras, onAdicionar, onReceber, onRemover }) {
             ? <div className="empty-state"><div className="empty-icon">🛒</div><div className="empty-text">Nenhuma compra pendente</div></div>
             : pendentes.map(c => (
               <div key={c.id} className="compra-card">
-                <div style={{ fontSize: 28 }}>📦</div>
+                <div style={{ fontSize: 28 }}>🍪</div>
                 <div className="compra-card-info">
                   <div className="compra-card-fornecedor">{c.fornecedor}</div>
                   <div className="compra-card-valor">{formatBRL(c.valor)}</div>
@@ -2320,7 +2321,7 @@ function Compras({ compras, onAdicionar, onReceber, onRemover }) {
         <div>
           {/* Dados do pedido */}
           <div className="form-grid form-grid-2" style={{ marginBottom: 20 }}>
-            <div className="input-group"><label className="input-label">Fornecedor *</label><input className="input" placeholder="Ex: Fornecedor SP" value={form.fornecedor} onChange={e => setF("fornecedor", e.target.value)} /></div>
+            <div className="input-group"><label className="input-label">Fornecedor *</label><input className="input" placeholder="Ex: Distribuidora de Chocolate SP" value={form.fornecedor} onChange={e => setF("fornecedor", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Data do Pedido</label><input className="input" type="date" value={form.data} onChange={e => setF("data", e.target.value)} /></div>
             <div className="input-group" style={{ gridColumn: "1 / -1" }}><label className="input-label">Observações gerais</label><textarea className="input" value={form.observacoes} onChange={e => setF("observacoes", e.target.value)} style={{ minHeight: 60 }} /></div>
           </div>
@@ -2334,7 +2335,7 @@ function Compras({ compras, onAdicionar, onReceber, onRemover }) {
               <div className="cart-add-row">
                 <div className="input-group">
                   <label className="input-label">Descrição do Item *</label>
-                  <input className="input" placeholder="Ex: Camiseta Dry-Fit P/Preta" value={itemForm.descricao} onChange={e => setIF("descricao", e.target.value)} />
+                  <input className="input" placeholder="Ex: Cookie Choc Chips 100g" value={itemForm.descricao} onChange={e => setIF("descricao", e.target.value)} />
                 </div>
                 <div className="input-group">
                   <label className="input-label">Qtd.</label>
@@ -2430,7 +2431,7 @@ function Encomendas({ encomendas, onAdicionar, onAtualizar, onRemover }) {
     if (!enc.telefone) return toast("Sem telefone cadastrado", "error");
     const restante = enc.valorTotal - (enc.sinal || 0);
     const fone = enc.telefone.replace(/\D/g, "");
-    const msg = `Olá ${enc.cliente}! 😊\n\nSua encomenda está *pronta*! 🎉\n\n📦 *Produto:* ${enc.produto} (${enc.quantidade} un.)\n💰 *Valor total:* R$ ${enc.valorTotal.toFixed(2).replace(".", ",")}\n${enc.sinal > 0 ? `✅ *Sinal pago:* R$ ${enc.sinal.toFixed(2).replace(".", ",")}\n💵 *Restante:* R$ ${restante.toFixed(2).replace(".", ",")}\n` : ""}📍 FitMGwear\n\nAguardamos você! 🙌`;
+    const msg = `Olá ${enc.cliente}! 😊\n\nSua encomenda de cookies está *pronta*! 🍪🎉\n\n📦 *Produto:* ${enc.produto} (${enc.quantidade} un.)\n💰 *Valor total:* R$ ${enc.valorTotal.toFixed(2).replace(".", ",")}\n${enc.sinal > 0 ? `✅ *Sinal pago:* R$ ${enc.sinal.toFixed(2).replace(".", ",")}\n💵 *Restante:* R$ ${restante.toFixed(2).replace(".", ",")}\n` : ""}📍 Jussara Cookies\n\nAguardamos você! 🙌`;
     window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
@@ -2451,7 +2452,7 @@ function Encomendas({ encomendas, onAdicionar, onAtualizar, onRemover }) {
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Encomendas</h1><p className="page-sub">Pedidos sob encomenda dos clientes</p></div>
+        <div><h1 className="page-title">Encomendas</h1><p className="page-sub">Encomendas de clientes — bolos, cookies e kits</p></div>
         <button className="btn btn-primary" onClick={() => abrirModal()}><Icon name="plus" />Nova Encomenda</button>
       </div>
 
@@ -2495,10 +2496,10 @@ function Encomendas({ encomendas, onAdicionar, onAtualizar, onRemover }) {
                       <span className={`badge ${STATUS_BADGE[enc.status]}`}>{STATUS_LABEL[enc.status]}</span>
                       {atrasada && <span className="badge badge-red">⚠ Atrasada</span>}
                     </div>
-                    <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 20, color: "var(--accent)", marginTop: 2 }}>
+                    <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 20, color: "var(--accent)", marginTop: 2 }}>
                       {formatBRL(enc.valorTotal)}
-                      {enc.sinal > 0 && <span style={{ fontSize: 13, color: "var(--green)", marginLeft: 10, fontFamily: "'DM Sans', sans-serif", fontWeight: 600 }}>✓ Sinal: {formatBRL(enc.sinal)}</span>}
-                      {restante > 0 && enc.sinal > 0 && <span style={{ fontSize: 13, color: "var(--yellow)", marginLeft: 8, fontFamily: "'DM Sans', sans-serif" }}>Restante: {formatBRL(restante)}</span>}
+                      {enc.sinal > 0 && <span style={{ fontSize: 13, color: "var(--green)", marginLeft: 10, fontFamily: "'Nunito', sans-serif", fontWeight: 600 }}>✓ Sinal: {formatBRL(enc.sinal)}</span>}
+                      {restante > 0 && enc.sinal > 0 && <span style={{ fontSize: 13, color: "var(--yellow)", marginLeft: 8, fontFamily: "'Nunito', sans-serif" }}>Restante: {formatBRL(restante)}</span>}
                     </div>
                     <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 4 }}>
                       🛍️ {enc.produto} · {enc.quantidade} un.
@@ -2544,7 +2545,7 @@ function Encomendas({ encomendas, onAdicionar, onAtualizar, onRemover }) {
           <div className="form-grid form-grid-2" style={{ gap: 14 }}>
             <div className="input-group"><label className="input-label">Nome do Cliente *</label><input className="input" placeholder="Ex: Maria Silva" value={form.cliente} onChange={e => set("cliente", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Telefone / WhatsApp</label><input className="input" placeholder="(11) 99999-9999" value={form.telefone} onChange={e => set("telefone", e.target.value)} /></div>
-            <div className="input-group" style={{ gridColumn: "1 / -1" }}><label className="input-label">Produto(s) Pedido(s) *</label><input className="input" placeholder="Ex: Camiseta Dry-Fit P/Preta + Short M/Azul" value={form.produto} onChange={e => set("produto", e.target.value)} /></div>
+            <div className="input-group" style={{ gridColumn: "1 / -1" }}><label className="input-label">Produto(s) Pedido(s) *</label><input className="input" placeholder="Ex: Cookie Chocolate Chips P/Preta + Short M/Azul" value={form.produto} onChange={e => set("produto", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Quantidade</label><input className="input" type="number" min="1" value={form.quantidade} onChange={e => set("quantidade", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Data de Entrega</label><input className="input" type="date" value={form.dataEntrega} onChange={e => set("dataEntrega", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Valor Total (R$) *</label><input className="input" type="number" step="0.01" min="0" placeholder="0,00" value={form.valorTotal} onChange={e => set("valorTotal", e.target.value)} /></div>
@@ -2638,7 +2639,7 @@ function Fiado({ fiados, onAdicionar, onPagar, onRemover, dados }) {
     const fone = f.telefone.replace(/\D/g, "");
     const forma = FORMA_LABEL[f.formaPagamento] || f.formaPagamento;
     const emoji = FORMA_EMOJI[f.formaPagamento] || "💰";
-    const msg = `Olá ${f.nome}! 😊\n\nPassando pra lembrar do valor que ficou em aberto aqui na *FitMGwear*.\n\n💰 *Valor:* R$ ${f.valor.toFixed(2).replace(".", ",")}\n${emoji} *Forma combinada:* ${forma}\n📅 *Data:* ${formatData(f.data)}\n${f.observacoes ? `📝 *Ref.:* ${f.observacoes}\n` : ""}\nQualquer dúvida, é só chamar! Obrigada 🙏`;
+    const msg = `Olá ${f.nome}! 😊\n\nPassando pra lembrar do valor que ficou em aberto aqui na *Jussara Cookies*.\n\n💰 *Valor:* R$ ${f.valor.toFixed(2).replace(".", ",")}\n${emoji} *Forma combinada:* ${forma}\n📅 *Data:* ${formatData(f.data)}\n${f.observacoes ? `📝 *Ref.:* ${f.observacoes}\n` : ""}\nQualquer dúvida, é só chamar! Obrigada 🙏`;
     window.open(`https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`, "_blank");
   }
 
@@ -2650,7 +2651,7 @@ function Fiado({ fiados, onAdicionar, onPagar, onRemover, dados }) {
   return (
     <div>
       <div className="page-header">
-        <div><h1 className="page-title">Fiado / Cobranças</h1><p className="page-sub">Controle de valores em aberto e lembretes de cobrança</p></div>
+        <div><h1 className="page-title">Fiado / Cobranças</h1><p className="page-sub">Cobranças em aberto e lembretes via WhatsApp</p></div>
         <button className="btn btn-primary" onClick={() => setModal(true)}><Icon name="plus" />Novo Fiado</button>
       </div>
 
@@ -2678,7 +2679,7 @@ function Fiado({ fiados, onAdicionar, onPagar, onRemover, dados }) {
                     {f.telefone && <span style={{ fontSize: 12, color: "var(--text2)" }}>📱 {f.telefone}</span>}
                     <span className="badge badge-yellow">Pendente</span>
                   </div>
-                  <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "var(--red)", marginTop: 2 }}>{formatBRL(f.valor)}</div>
+                  <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 22, color: "var(--red)", marginTop: 2 }}>{formatBRL(f.valor)}</div>
                   <div style={{ fontSize: 12, color: "var(--text2)", marginTop: 3, display: "flex", gap: 10, flexWrap: "wrap" }}>
                     <span>📅 {formatData(f.data)}</span>
                     <span>{FORMA_EMOJI[f.formaPagamento]} {FORMA_LABEL[f.formaPagamento]}</span>
@@ -2804,7 +2805,7 @@ function Sidebar({ page, onNavigate, onLogout, open, onClose, perfil, isDono }) 
       <aside className={`sidebar ${open ? "open" : ""}`}>
         <div className="sidebar-logo">
           <div className="logo-img"><img src={logoImg} alt="MG" /></div>
-          <div><div className="logo-name">FITMGWEAR</div><div className="logo-sub">Gestão</div></div>
+          <div><div className="logo-name">JUSSARA 🍪</div><div className="logo-sub">Confeitaria Artesanal</div></div>
         </div>
         <nav className="sidebar-nav">
           {groups.map(g => (
@@ -2821,14 +2822,14 @@ function Sidebar({ page, onNavigate, onLogout, open, onClose, perfil, isDono }) 
         <div className="sidebar-footer">
           {perfil && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 8, background: "var(--surface2)", borderRadius: "var(--radius-sm)" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: perfil.cargo === "dono" ? "rgba(232,184,75,0.2)" : "rgba(77,166,255,0.15)", color: perfil.cargo === "dono" ? "var(--accent)" : "var(--blue)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: perfil.cargo === "dono" ? "rgba(232,67,122,0.2)" : "rgba(192,132,232,0.15)", color: perfil.cargo === "dono" ? "var(--accent)" : "var(--blue)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13 }}>
                 {(perfil.nome || "?")[0].toUpperCase()}
               </div>
               <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{perfil.nome}</div><div style={{ fontSize: 10, color: perfil.cargo === "dono" ? "var(--accent)" : "var(--blue)", textTransform: "capitalize" }}>{perfil.cargo}</div></div>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", padding: "4px 12px 8px", fontSize: 11, color: "var(--text2)" }}>
-            <Icon name="sync" size={12} /><span style={{ marginLeft: 6 }}>Firebase — tempo real</span><div className="sync-dot" />
+            <Icon name="sync" size={12} /><span style={{ marginLeft: 6 }}>Firebase Sync — tempo real</span><div className="sync-dot" />
           </div>
           <button className="footer-btn danger" onClick={onLogout}><Icon name="lock" size={14} />Sair</button>
         </div>
@@ -2841,12 +2842,13 @@ function Sidebar({ page, onNavigate, onLogout, open, onClose, perfil, isDono }) 
 // FIREBASE HOOKS
 // ─────────────────────────────────────────────
 const CATEGORIAS_PADRAO = [
-  { id: "c1", nome: "Vendas", tipo: "receita", cor: "#3ecf8e" },
-  { id: "c2", nome: "Serviços", tipo: "receita", cor: "#4da6ff" },
-  { id: "c3", nome: "Aluguel", tipo: "despesa", cor: "#f06060" },
-  { id: "c4", nome: "Fornecedores", tipo: "despesa", cor: "#f5a623" },
-  { id: "c5", nome: "Funcionários", tipo: "despesa", cor: "#a78bfa" },
-  { id: "c6", nome: "Utilidades", tipo: "despesa", cor: "#22d3ee" },
+  { id: "c1", nome: "Vendas Balcão", tipo: "receita", cor: "#3ecf8e" },
+  { id: "c2", nome: "Encomendas", tipo: "receita", cor: "#e8437a" },
+  { id: "c3", nome: "Delivery / iFood", tipo: "receita", cor: "#f272a0" },
+  { id: "c4", nome: "Ingredientes", tipo: "despesa", cor: "#f06060" },
+  { id: "c5", nome: "Embalagens", tipo: "despesa", cor: "#f5a623" },
+  { id: "c6", nome: "Gás / Energia", tipo: "despesa", cor: "#c084e8" },
+  { id: "c7", nome: "Entrega / Frete", tipo: "despesa", cor: "#22d3ee" },
 ];
 
 function useCollection(colName) {
@@ -3027,15 +3029,15 @@ export default function App() {
   async function removerVariante(id) { await deleteDoc(doc(db, "variantesProduto", id)); }
   async function atualizarVariante(id, upd) { const v = variantesProduto.find(x => x.id === id); if (v) await setDoc(doc(db, "variantesProduto", id), { ...v, ...upd }); }
 
-  if (authLoading) return (<><style>{CSS}</style><div className="loading-screen"><div className="spinner" /><p style={{ color: "var(--text2)", fontSize: 13 }}>Verificando acesso...</p></div></>);
+  if (authLoading) return (<><style>{CSS}</style><div className="loading-screen"><div className="spinner" /><p style={{ color: "var(--text2)", fontSize: 13 }}>Verificando acesso... 🍪</p></div></>);
   if (!usuario) return (<><style>{CSS}</style><LoginScreen primeiroAcesso={primeiroAcesso} /><ToastContainer /></>);
-  if (loading) return (<><style>{CSS}</style><div className="loading-screen"><div className="spinner" /><p style={{ color: "var(--text2)", fontSize: 13 }}>Carregando dados...</p></div></>);
+  if (loading) return (<><style>{CSS}</style><div className="loading-screen"><div className="spinner" /><p style={{ color: "var(--text2)", fontSize: 13 }}>Carregando dados... 🍪</p></div></>);
 
   function renderPage() {
     if (page === "painel") return <Dashboard dados={dados} />;
     if (page === "venda") return (
       <div>
-        <div className="page-header"><div><h1 className="page-title">Nova Venda</h1><p className="page-sub">Monte o carrinho e finalize a venda</p></div></div>
+        <div className="page-header"><div><h1 className="page-title">Nova Venda</h1><p className="page-sub">Monte o pedido e finalize a venda 🍪</p></div></div>
         <CarrinhoVenda dados={dados} onSalvar={adicionarVendaCarrinho} onCancelar={() => setPage("painel")} />
       </div>
     );
@@ -3064,7 +3066,7 @@ export default function App() {
           <button className="mobile-menu-btn" onClick={() => setSidebarOpen(true)}><Icon name="menu" size={18} /></button>
           <div className="mobile-logo">
             <div className="mobile-logo-img"><img src={logoImg} alt="Logo" /></div>
-            <span className="mobile-logo-name">FITMGWEAR</span>
+            <span className="mobile-logo-name">JUSSARA 🍪</span>
           </div>
         </div>
         <Sidebar page={page} onNavigate={setPage} open={sidebarOpen} onClose={() => setSidebarOpen(false)} onLogout={handleLogout} perfil={perfil} isDono={isDono} />
