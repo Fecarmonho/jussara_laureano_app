@@ -5,7 +5,15 @@ echo   JUSSARA COOKIES - Atualizando...
 echo  ========================================
 echo.
 
-cd /d "C:\Users\fecar\OneDrive\Area de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies"
+REM ── Copia App.jsx da Area de Trabalho para src\ ──
+if exist "C:\Users\fecar\OneDrive\Área de Trabalho\App.jsx" (
+  echo Copiando App.jsx para src\...
+  copy /Y "C:\Users\fecar\OneDrive\Área de Trabalho\App.jsx" "C:\Users\fecar\OneDrive\Área de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies\src\App.jsx"
+  echo App.jsx copiado!
+  echo.
+)
+
+cd /d "C:\Users\fecar\OneDrive\Área de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies"
 
 echo Corrigindo repositorio remoto...
 git remote set-url origin https://github.com/Fecarmonho/jussara_laureano_app.git
@@ -25,6 +33,7 @@ git push origin main --force
 echo.
 echo  ========================================
 echo   Concluido! Vercel atualiza em 1 minuto.
+echo   https://jussara-laureano-app.vercel.app
 echo  ========================================
 echo.
 pause

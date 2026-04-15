@@ -14,7 +14,6 @@ const firebaseConfig = {
   appId: "1:976231575507:web:99ee2558d6931ebcf18926",
 };
 
-
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
@@ -235,13 +234,13 @@ const CSS = `
   .empty-state { padding:52px; text-align:center; color:var(--text2); }
   .empty-icon { font-size:42px; margin-bottom:12px; opacity:0.45; }
   .empty-text { font-size:14px; }
-  .mobile-navbar { display: none; position: fixed; top: 0; left: 0; right: 0; height: 60px; background: var(--surface); border-bottom: 1px solid var(--border2); z-index: 101; align-items: center; padding: 0 16px; gap: 12px; box-shadow: 0 2px 12px rgba(180,80,60,0.08); }
-  .mobile-menu-btn { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 8px; cursor: pointer; color: var(--text); display: flex; align-items: center; justify-content: center; }
+  .mobile-navbar { display: none; position: fixed; top: 0; left: 0; right: 0; height: 72px; background: var(--surface); border-bottom: 1px solid var(--border2); z-index: 101; align-items: center; padding: 0 16px; gap: 12px; box-shadow: 0 2px 12px rgba(180,80,60,0.08); }
+  .mobile-menu-btn { background: var(--surface2); border: 1px solid var(--border2); border-radius: var(--radius-sm); padding: 9px; cursor: pointer; color: var(--text); display: flex; align-items: center; justify-content: center; }
   .mobile-logo { display: flex; align-items: center; gap: 10px; flex: 1; }
-  .mobile-logo-img { width: 32px; height: 32px; border-radius: 6px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-  .mobile-logo-img img { width: 100%; height: 100%; object-fit: contain; }
-  .mobile-logo-name { font-family: 'Playfair Display', serif; font-size: 18px; letter-spacing: 1.5px; color: var(--accent); line-height: 1; }
-  .mobile-menu-btn svg { width:18px; height:18px; display:block; }
+  .mobile-logo-img { width: 52px; height: 52px; border-radius: 10px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; box-shadow: 0 2px 8px rgba(232,67,122,0.2); }
+  .mobile-logo-img img { width: 100%; height: 100%; object-fit: cover; }
+  .mobile-logo-name { font-family: 'Playfair Display', serif; font-size: 20px; letter-spacing: 1.5px; color: var(--accent); line-height: 1; }
+  .mobile-menu-btn svg { width:20px; height:20px; display:block; }
   .confirm-dialog { background:var(--surface); border:1px solid var(--border2); border-radius:var(--radius); padding:26px; max-width:420px; width:100%; box-shadow: 0 20px 60px rgba(180,80,60,0.2); }
   .confirm-title { font-family:'Playfair Display',serif; font-size:18px; letter-spacing:1px; margin-bottom:10px; }
   .confirm-text { font-size:13px; color:var(--text2); margin-bottom:22px; }
@@ -321,7 +320,7 @@ const CSS = `
     .sidebar.open { transform:translateX(0); box-shadow:8px 0 40px rgba(180,80,60,0.2); }
     .sidebar-overlay { display:block; }
     .mobile-navbar { display: flex; }
-    .page { padding:20px 14px; padding-top:80px; }
+    .page { padding:20px 14px; padding-top:90px; }
     .stats-grid { grid-template-columns:1fr 1fr; gap: 12px; }
     .stat-card { padding: 16px 14px; }
     .stat-value { font-size: 22px; }
