@@ -7,6 +7,7 @@ echo  ========================================
 echo.
 
 set "PASTA=C:\Users\fecar\OneDrive"
+set "HOOK=https://api.vercel.com/v1/integrations/deploy/prj_nLqgEwgMvPlXhzlQfnIYX7bRb5J1/q34QX3UvD9"
 
 REM ── Copia App.jsx da Area de Trabalho para src\ ──
 if exist "%PASTA%\Área de Trabalho\App.jsx" (
@@ -35,6 +36,10 @@ git commit -m "%msg%"
 
 echo [3/3] Enviando para o GitHub...
 git push origin main --force
+
+echo Disparando deploy na Vercel...
+curl -s -X POST "%HOOK%" >nul
+echo Deploy disparado!
 
 echo.
 echo  ========================================
