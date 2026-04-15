@@ -1,22 +1,28 @@
 @echo off
+chcp 65001 >nul
 echo.
 echo  ========================================
 echo   JUSSARA COOKIES - Atualizando...
 echo  ========================================
 echo.
 
+set "PASTA=C:\Users\fecar\OneDrive"
+
 REM ── Copia App.jsx da Area de Trabalho para src\ ──
-if exist "C:\Users\fecar\OneDrive\Área de Trabalho\App.jsx" (
+if exist "%PASTA%\Área de Trabalho\App.jsx" (
   echo Copiando App.jsx para src\...
-  copy /Y "C:\Users\fecar\OneDrive\Área de Trabalho\App.jsx" "C:\Users\fecar\OneDrive\Área de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies\src\App.jsx"
+  copy /Y "%PASTA%\Área de Trabalho\App.jsx" "%PASTA%\Área de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies\src\App.jsx"
   echo App.jsx copiado!
   echo.
 )
 
-cd /d "C:\Users\fecar\OneDrive\Área de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies"
+cd /d "%PASTA%\Área de Trabalho\Felipe\Arquivos\Projetos\jussara-cookies"
 
 echo Corrigindo repositorio remoto...
 git remote set-url origin https://github.com/Fecarmonho/jussara_laureano_app.git
+
+echo Garantindo branch main...
+git checkout -B main
 
 echo [1/3] Adicionando TODOS os arquivos...
 git add .
