@@ -443,7 +443,7 @@ function ConfirmDialog({ open, title, text, onConfirm, onCancel, danger }) {
 // ─────────────────────────────────────────────
 // LOGIN
 // ─────────────────────────────────────────────
-function LoginScreen({ primeiroAcesso }) {
+function LoginScreen() {
   // tela: "login" | "cadastro"
   const [tela, setTela] = useState("login");
 
@@ -532,7 +532,7 @@ function LoginScreen({ primeiroAcesso }) {
       }
 
       // Primeiro usuário do Firestore vira dono automaticamente, independente de primeiroAcesso
-      const cargo = (primeiroAcesso || isFirstUser) ? "dono" : "funcionario";
+      const cargo = "usuario";
       await setDoc(doc(db, "usuarios", localId), {
         uid: localId,
         nome: cNome.trim(),
@@ -567,10 +567,10 @@ function LoginScreen({ primeiroAcesso }) {
         </div>
 
         {/* ── TELA DE CADASTRO ── */}
-        {(tela === "cadastro" || primeiroAcesso) ? (
+        {tela === "cadastro" ? (
           <>
             <div style={{ background: "rgba(232,67,122,0.08)", border: "1px solid rgba(232,67,122,0.25)", borderRadius: "var(--radius-sm)", padding: "10px 14px", fontSize: 13, color: "var(--accent)", marginBottom: 20 }}>
-              {primeiroAcesso ? "🍪 Primeira vez? Crie a conta da proprietária." : "👤 Criar nova conta de acesso"}
+              "👤 Criar nova conta de acesso"
             </div>
             {erro && <div className="login-error">⚠️ {erro}</div>}
             <form onSubmit={criarConta}>
@@ -601,7 +601,7 @@ function LoginScreen({ primeiroAcesso }) {
                 </button>
               </div>
             </form>
-            {!primeiroAcesso && (
+            {
               <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--text2)" }}>
                 Já tem conta?{" "}
                 <span style={{ color: "var(--accent)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }} onClick={() => { setErro(""); setTela("login"); }}>
@@ -653,7 +653,7 @@ function LoginScreen({ primeiroAcesso }) {
 function GerenciarUsuarios({ usuarioAtual }) {
   const [usuarios, setUsuarios] = useState([]);
   const [modal, setModal] = useState(false);
-  const [form, setForm] = useState({ nome: "", email: "", senha: "", cargo: "funcionario" });
+  const [form, setForm] = useState({ nome: "", email: "", senha: "" });
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(true);
   const [confirmRemover, setConfirmRemover] = useState(null);
@@ -695,16 +695,16 @@ function GerenciarUsuarios({ usuarioAtual }) {
           const localId = dataSignin.localId;
           const jaExiste = usuarios.find(u => u.uid === localId);
           if (jaExiste) { toast(`Este e-mail já está ativo como "${jaExiste.nome}".`, "error"); setLoading(false); return; }
-          await setDoc(doc(db, "usuarios", localId), { uid: localId, nome: form.nome.trim(), email: form.email.trim(), cargo: form.cargo, criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid });
+          await setDoc(doc(db, "usuarios", localId), { uid: localId, nome: form.nome.trim(), email: form.email.trim(), cargo: "usuario", criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid });
           toast(`Usuário ${form.nome} reativado! ✓`);
-          setForm({ nome: "", email: "", senha: "", cargo: "funcionario" }); setModal(false); setLoading(false); return;
+          setForm({ nome: "", email: "", senha: "" }); setModal(false); setLoading(false); return;
         }
         const msgs = { "WEAK_PASSWORD": "Senha fraca.", "INVALID_EMAIL": "E-mail inválido." };
         throw new Error(msgs[dataCriar.error.message] || dataCriar.error.message);
       }
-      await setDoc(doc(db, "usuarios", dataCriar.localId), { uid: dataCriar.localId, nome: form.nome.trim(), email: form.email.trim(), cargo: form.cargo, criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid });
+      await setDoc(doc(db, "usuarios", dataCriar.localId), { uid: dataCriar.localId, nome: form.nome.trim(), email: form.email.trim(), cargo: "usuario", criadoEm: new Date().toISOString(), criadoPor: usuarioAtual?.uid });
       toast(`Usuário ${form.nome} criado! ✓`);
-      setForm({ nome: "", email: "", senha: "", cargo: "funcionario" }); setModal(false);
+      setForm({ nome: "", email: "", senha: "" }); setModal(false);
     } catch (err) { toast(err.message || "Erro ao criar usuário.", "error"); }
     finally { setLoading(false); }
   }
@@ -756,7 +756,7 @@ function GerenciarUsuarios({ usuarioAtual }) {
               {usuarios.map(u => (
                 <div key={u.id} className="usuario-card">
                   <div className="usuario-card-top">
-                    <div className="usuario-avatar" style={{ background: u.cargo === "dono" ? "rgba(232,67,122,0.15)" : "rgba(192,132,232,0.12)", color: u.cargo === "dono" ? "var(--accent)" : "var(--blue)" }}>
+                    <div className="usuario-avatar" style={{ background: "rgba(232,67,122,0.15)", color: "var(--accent)" }}>
                       {(u.nome || "?")[0].toUpperCase()}
                     </div>
                     <div className="usuario-info">
@@ -765,8 +765,8 @@ function GerenciarUsuarios({ usuarioAtual }) {
                     </div>
                   </div>
                   <div style={{ borderTop: "1px solid var(--border2)", paddingTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                    <span className={`usuario-role ${u.cargo === "dono" ? "role-dono" : "role-func"}`} style={{ alignSelf: "flex-start" }}>
-                      {u.cargo === "dono" ? "👑 Proprietária" : "👤 Funcionário"}
+                    <span className={"usuario-role role-dono"} style={{ alignSelf: "flex-start" }}>
+                      "👤 Usuário"
                     </span>
                     {u.uid === usuarioAtual?.uid
                       ? <span style={{ fontSize: 11, color: "var(--text2)", padding: "4px 10px", borderRadius: 99, background: "var(--surface2)", border: "1px solid var(--border2)", alignSelf: "flex-start" }}>Você</span>
@@ -782,18 +782,12 @@ function GerenciarUsuarios({ usuarioAtual }) {
         }
       </div></div>
 
-      <Modal open={modal} onClose={() => { setModal(false); setForm({ nome: "", email: "", senha: "", cargo: "funcionario" }); }} title="Novo Usuário">
+      <Modal open={modal} onClose={() => { setModal(false); setForm({ nome: "", email: "", senha: "" }); }} title="Novo Usuário">
         <form onSubmit={criarUsuario}>
           <div className="form-grid" style={{ gap: 14 }}>
             <div className="input-group"><label className="input-label">Nome</label><input className="input" value={form.nome} onChange={e => set("nome", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">E-mail</label><input className="input" type="email" value={form.email} onChange={e => set("email", e.target.value)} /></div>
             <div className="input-group"><label className="input-label">Senha</label><input className="input" type="password" value={form.senha} onChange={e => set("senha", e.target.value)} placeholder="Mínimo 6 caracteres" /></div>
-            <div className="input-group"><label className="input-label">Cargo</label>
-              <select className="input" value={form.cargo} onChange={e => set("cargo", e.target.value)}>
-                <option value="funcionario">Funcionário</option>
-                <option value="dono">Dono / Admin</option>
-              </select>
-            </div>
           </div>
           <div className="form-actions">
             <button type="button" className="btn btn-secondary" onClick={() => setModal(false)}>Cancelar</button>
@@ -2899,10 +2893,10 @@ const NAV_BASE = [
   { id: "categorias", label: "Categorias", icon: "categories", group: "Dados" },
   { id: "relatorio", label: "Relatório PDF", icon: "pdf", group: "Dados" },
 ];
-const NAV_DONO = [{ id: "usuarios", label: "Usuários", icon: "clients", group: "Admin" }];
+const NAV_DONO = [];
 
 function Sidebar({ page, onNavigate, onLogout, open, onClose, perfil, isDono }) {
-  const navItems = isDono ? [...NAV_BASE, ...NAV_DONO] : NAV_BASE;
+  const navItems = [...NAV_BASE, ...NAV_DONO];
   const groups = [...new Set(navItems.map(i => i.group))];
   return (
     <>
@@ -2927,10 +2921,10 @@ function Sidebar({ page, onNavigate, onLogout, open, onClose, perfil, isDono }) 
         <div className="sidebar-footer">
           {perfil && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 8, background: "var(--surface2)", borderRadius: "var(--radius-sm)" }}>
-              <div style={{ width: 30, height: 30, borderRadius: "50%", background: perfil.cargo === "dono" ? "rgba(232,67,122,0.15)" : "rgba(124,58,237,0.12)", color: perfil.cargo === "dono" ? "var(--accent)" : "var(--blue)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, border: "1.5px solid var(--border2)" }}>
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(232,67,122,0.15)", color: "var(--accent)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 13, border: "1.5px solid var(--border2)" }}>
                 {(perfil.nome || "?")[0].toUpperCase()}
               </div>
-              <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{perfil.nome}</div><div style={{ fontSize: 10, color: perfil.cargo === "dono" ? "var(--accent)" : "var(--blue)", textTransform: "capitalize" }}>{perfil.cargo}</div></div>
+              <div><div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{perfil.nome}</div><div style={{ fontSize: 10, color: "var(--accent)", textTransform: "capitalize" }}>"usuário"</div></div>
             </div>
           )}
           <div style={{ display: "flex", alignItems: "center", padding: "4px 12px 8px", fontSize: 11, color: "var(--text2)" }}>
@@ -2978,7 +2972,7 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [page, setPage] = useState("painel");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [primeiroAcesso, setPrimeiroAcesso] = useState(false);
+  
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -2987,8 +2981,7 @@ export default function App() {
         const snap = await getDocs(collection(db, "usuarios"));
         const perfis = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         const p = perfis.find(x => x.uid === u.uid);
-        setPerfil(p || { cargo: "funcionario", nome: u.email });
-        setPrimeiroAcesso(false);
+        setPerfil(p || { cargo: "usuario", nome: u.email });
       } else {
         setPerfil(null);
         // Tenta verificar se é primeiro acesso (nenhum usuário cadastrado)
@@ -2996,14 +2989,12 @@ export default function App() {
         const verificar = async () => {
           try {
             const snap = await getDocs(collection(db, "usuarios"));
-            setPrimeiroAcesso(snap.empty);
           } catch (err) {
             // Se falhar, tenta mais uma vez após 1 segundo
             if (tentativas < 2) {
               tentativas++;
               setTimeout(verificar, 1000);
             } else {
-              setPrimeiroAcesso(false);
             }
           }
         };
@@ -3014,7 +3005,7 @@ export default function App() {
     return unsub;
   }, []);
 
-  const isDono = perfil?.cargo === "dono";
+  const isDono = true;
 
   const [transacoes, loadingT] = useCollection("transacoes");
   const [produtos, loadingP] = useCollection("produtos");
@@ -3151,7 +3142,7 @@ export default function App() {
   async function atualizarVariante(id, upd) { const v = variantesProduto.find(x => x.id === id); if (v) await setDoc(doc(db, "variantesProduto", id), { ...v, ...upd }); }
 
   if (authLoading) return (<><style>{CSS}</style><div className="loading-screen"><div className="spinner" /><p style={{ color: "var(--text2)", fontSize: 13 }}>Verificando acesso... 🍪</p></div></>);
-  if (!usuario) return (<><style>{CSS}</style><LoginScreen primeiroAcesso={primeiroAcesso} /><ToastContainer /></>);
+  if (!usuario) return (<><style>{CSS}</style><LoginScreen /><ToastContainer /></>);
   if (loading) return (<><style>{CSS}</style><div className="loading-screen"><div className="spinner" /><p style={{ color: "var(--text2)", fontSize: 13 }}>Carregando dados... 🍪</p></div></>);
 
   function renderPage() {
@@ -3176,7 +3167,7 @@ export default function App() {
     if (page === "compras") return <Compras compras={compras} onAdicionar={adicionarCompra} onReceber={receberCompra} onRemover={removerCompra} />;
     if (page === "encomendas") return <Encomendas encomendas={encomendas} onAdicionar={adicionarEncomenda} onAtualizar={atualizarEncomenda} onRemover={removerEncomenda} />;
     if (page === "fiado") return <Fiado fiados={fiados} onAdicionar={adicionarFiado} onPagar={pagarFiado} onRemover={removerFiado} dados={dados} />;
-    if (page === "usuarios" && isDono) return <GerenciarUsuarios usuarioAtual={usuario} />;
+    if (page === "usuarios") return <GerenciarUsuarios usuarioAtual={usuario} />;
   }
 
   return (
