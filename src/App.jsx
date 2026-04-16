@@ -496,14 +496,40 @@ function LoginScreen({ primeiroAcesso }) {
           body: JSON.stringify({ email: cEmail.trim(), password: cSenha, returnSecureToken: true }) }
       );
       const data = await res.json();
+
+      let localId;
+
       if (data.error) {
-        const msgs = { "EMAIL_EXISTS": "E-mail já cadastrado.", "WEAK_PASSWORD": "Senha muito fraca.", "INVALID_EMAIL": "E-mail inválido." };
-        throw new Error(msgs[data.error.message] || data.error.message);
+        if (data.error.message === "EMAIL_EXISTS") {
+          // E-mail existe no Auth — tenta logar com a senha informada
+          const resLogin = await fetch(
+            `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${auth.app.options.apiKey}`,
+            { method: "POST", headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: cEmail.trim(), password: cSenha, returnSecureToken: true }) }
+          );
+          const dataLogin = await resLogin.json();
+          if (dataLogin.error) {
+            // Senha diferente — atualiza a senha via API usando a nova senha informada não é possível sem o idToken
+            // Solução: envia e-mail de redefinição automaticamente
+            await fetch(
+              `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${auth.app.options.apiKey}`,
+              { method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ requestType: "PASSWORD_RESET", email: cEmail.trim() }) }
+            );
+            throw new Error(`Esse e-mail já tinha outra senha cadastrada. Enviamos um link de redefinição para ${cEmail.trim()} — redefina a senha, depois entre normalmente.`);
+          }
+          localId = dataLogin.localId;
+        } else {
+          const msgs = { "WEAK_PASSWORD": "Senha muito fraca.", "INVALID_EMAIL": "E-mail inválido." };
+          throw new Error(msgs[data.error.message] || data.error.message);
+        }
+      } else {
+        localId = data.localId;
       }
-      // cargo: dono se for o primeiro, funcionario para os demais
+
       const cargo = primeiroAcesso ? "dono" : "funcionario";
-      await setDoc(doc(db, "usuarios", data.localId), {
-        uid: data.localId,
+      await setDoc(doc(db, "usuarios", localId), {
+        uid: localId,
         nome: cNome.trim(),
         email: cEmail.trim(),
         cargo,
