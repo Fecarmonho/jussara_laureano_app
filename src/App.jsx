@@ -601,14 +601,12 @@ function LoginScreen() {
                 </button>
               </div>
             </form>
-            {
-              <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--text2)" }}>
-                Já tem conta?{" "}
-                <span style={{ color: "var(--accent)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }} onClick={() => { setErro(""); setTela("login"); }}>
-                  Entrar
-                </span>
-              </div>
-            )}
+            <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--text2)" }}>
+              Já tem conta?{" "}
+              <span style={{ color: "var(--accent)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }} onClick={() => { setErro(""); setTela("login"); }}>
+                Entrar
+              </span>
+            </div>
           </>
         ) : (
         /* ── TELA DE LOGIN ── */
