@@ -444,10 +444,19 @@ function ConfirmDialog({ open, title, text, onConfirm, onCancel, danger }) {
 // LOGIN
 // ─────────────────────────────────────────────
 function LoginScreen({ primeiroAcesso }) {
+  // tela: "login" | "cadastro"
+  const [tela, setTela] = useState("login");
+
+  // campos login
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [confirmar, setConfirmar] = useState("");
-  const [nome, setNome] = useState("");
+
+  // campos cadastro
+  const [cNome, setCNome] = useState("");
+  const [cEmail, setCEmail] = useState("");
+  const [cSenha, setCSenha] = useState("");
+  const [cConfirmar, setCConfirmar] = useState("");
+
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState("");
@@ -471,25 +480,46 @@ function LoginScreen({ primeiroAcesso }) {
     } finally { setLoading(false); }
   }
 
-  async function criarDono(e) {
+  // Usado tanto para o primeiro acesso (dono) quanto para novos usuários
+  async function criarConta(e) {
     e.preventDefault();
     setErro("");
-    if (!nome.trim()) return setErro("Digite seu nome.");
-    if (!email.trim()) return setErro("Digite seu e-mail.");
-    if (senha.length < 6) return setErro("Senha deve ter no mínimo 6 caracteres.");
-    if (senha !== confirmar) return setErro("As senhas não conferem.");
+    if (!cNome.trim()) return setErro("Digite seu nome.");
+    if (!cEmail.trim()) return setErro("Digite seu e-mail.");
+    if (cSenha.length < 6) return setErro("Senha deve ter no mínimo 6 caracteres.");
+    if (cSenha !== cConfirmar) return setErro("As senhas não conferem.");
     setLoading(true);
     try {
       const res = await fetch(
         `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${auth.app.options.apiKey}`,
         { method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: email.trim(), password: senha, returnSecureToken: true }) }
+          body: JSON.stringify({ email: cEmail.trim(), password: cSenha, returnSecureToken: true }) }
       );
       const data = await res.json();
-      if (data.error) { const msgs = { "EMAIL_EXISTS": "E-mail já cadastrado.", "WEAK_PASSWORD": "Senha fraca." }; throw new Error(msgs[data.error.message] || data.error.message); }
-      await setDoc(doc(db, "usuarios", data.localId), { uid: data.localId, nome: nome.trim(), email: email.trim(), cargo: "dono", criadoEm: new Date().toISOString() });
-      await signInWithEmailAndPassword(auth, email.trim(), senha);
-    } catch (err) { setErro(err.message || "Erro ao criar conta."); setLoading(false); }
+      if (data.error) {
+        const msgs = { "EMAIL_EXISTS": "E-mail já cadastrado.", "WEAK_PASSWORD": "Senha muito fraca.", "INVALID_EMAIL": "E-mail inválido." };
+        throw new Error(msgs[data.error.message] || data.error.message);
+      }
+      // cargo: dono se for o primeiro, funcionario para os demais
+      const cargo = primeiroAcesso ? "dono" : "funcionario";
+      await setDoc(doc(db, "usuarios", data.localId), {
+        uid: data.localId,
+        nome: cNome.trim(),
+        email: cEmail.trim(),
+        cargo,
+        criadoEm: new Date().toISOString(),
+      });
+      await signInWithEmailAndPassword(auth, cEmail.trim(), cSenha);
+    } catch (err) {
+      setErro(err.message || "Erro ao criar conta.");
+      setLoading(false);
+    }
+  }
+
+  function irParaCadastro() {
+    setErro("");
+    setCNome(""); setCEmail(""); setCSenha(""); setCConfirmar("");
+    setTela("cadastro");
   }
 
   return (
@@ -504,58 +534,78 @@ function LoginScreen({ primeiroAcesso }) {
           <div className="login-logo-img"><img src={logoImg} alt="Jussara Cookies" /></div>
           <div className="login-logo-text"><h1>JUSSARA COOKIES</h1><p>Confeitaria Artesanal 🍪</p></div>
         </div>
-        {primeiroAcesso ? (
+
+        {/* ── TELA DE CADASTRO ── */}
+        {(tela === "cadastro" || primeiroAcesso) ? (
           <>
             <div style={{ background: "rgba(232,67,122,0.08)", border: "1px solid rgba(232,67,122,0.25)", borderRadius: "var(--radius-sm)", padding: "10px 14px", fontSize: 13, color: "var(--accent)", marginBottom: 20 }}>
-              🍪 Primeira vez? Crie a conta da proprietária.
+              {primeiroAcesso ? "🍪 Primeira vez? Crie a conta da proprietária." : "👤 Criar nova conta de acesso"}
             </div>
             {erro && <div className="login-error">⚠️ {erro}</div>}
-            <form onSubmit={criarDono}>
+            <form onSubmit={criarConta}>
               <div className="form-grid" style={{ gap: 14 }}>
-                <div className="input-group"><label className="input-label">Nome</label><input className="input" placeholder="João Silva" value={nome} onChange={e => setNome(e.target.value)} /></div>
-                <div className="input-group"><label className="input-label">E-mail</label><input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
-                <div className="input-group"><label className="input-label">Senha</label>
+                <div className="input-group">
+                  <label className="input-label">Nome</label>
+                  <input className="input" placeholder="Seu nome completo" value={cNome} onChange={e => setCNome(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">E-mail</label>
+                  <input className="input" type="email" placeholder="seu@email.com" value={cEmail} onChange={e => setCEmail(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Senha</label>
                   <div style={{ position: "relative" }}>
-                    <input className="input" type={show ? "text" : "password"} value={senha} onChange={e => setSenha(e.target.value)} style={{ paddingRight: 40 }} />
-                    <button type="button" onClick={() => setShow(!show)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text2)", cursor: "pointer" }}><Icon name={show ? "eyeoff" : "eye"} size={16} /></button>
+                    <input className="input" type={show ? "text" : "password"} placeholder="Mínimo 6 caracteres" value={cSenha} onChange={e => setCSenha(e.target.value)} style={{ paddingRight: 40 }} />
+                    <button type="button" onClick={() => setShow(s => !s)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text2)", cursor: "pointer" }}>
+                      <Icon name={show ? "eyeoff" : "eye"} size={16} />
+                    </button>
                   </div>
                 </div>
-                <div className="input-group"><label className="input-label">Confirmar Senha</label><input className="input" type={show ? "text" : "password"} value={confirmar} onChange={e => setConfirmar(e.target.value)} /></div>
-                <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", padding: "11px" }}><Icon name="check" />{loading ? "Criando..." : "Criar Conta"}</button>
+                <div className="input-group">
+                  <label className="input-label">Confirmar Senha</label>
+                  <input className="input" type={show ? "text" : "password"} placeholder="Repita a senha" value={cConfirmar} onChange={e => setCConfirmar(e.target.value)} />
+                </div>
+                <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", padding: "11px" }}>
+                  <Icon name="check" />{loading ? "Criando conta..." : "Criar Conta"}
+                </button>
               </div>
             </form>
+            {!primeiroAcesso && (
+              <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "var(--text2)" }}>
+                Já tem conta?{" "}
+                <span style={{ color: "var(--accent)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }} onClick={() => { setErro(""); setTela("login"); }}>
+                  Entrar
+                </span>
+              </div>
+            )}
           </>
         ) : (
+        /* ── TELA DE LOGIN ── */
           <>
             {erro && <div className="login-error">⚠️ {erro}</div>}
             <form onSubmit={entrar}>
               <div className="form-grid" style={{ gap: 14 }}>
-                <div className="input-group"><label className="input-label">E-mail</label><input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} /></div>
-                <div className="input-group"><label className="input-label">Senha</label>
+                <div className="input-group">
+                  <label className="input-label">E-mail</label>
+                  <input className="input" type="email" value={email} onChange={e => setEmail(e.target.value)} />
+                </div>
+                <div className="input-group">
+                  <label className="input-label">Senha</label>
                   <div style={{ position: "relative" }}>
                     <input className="input" type={show ? "text" : "password"} value={senha} onChange={e => setSenha(e.target.value)} style={{ paddingRight: 40 }} />
-                    <button type="button" onClick={() => setShow(!show)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text2)", cursor: "pointer" }}><Icon name={show ? "eyeoff" : "eye"} size={16} /></button>
+                    <button type="button" onClick={() => setShow(s => !s)} style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: "var(--text2)", cursor: "pointer" }}>
+                      <Icon name={show ? "eyeoff" : "eye"} size={16} />
+                    </button>
                   </div>
                 </div>
-                <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", padding: "11px" }}><Icon name="lock" />{loading ? "Entrando..." : "Entrar"}</button>
+                <button className="btn btn-primary" type="submit" disabled={loading} style={{ width: "100%", padding: "11px" }}>
+                  <Icon name="lock" />{loading ? "Entrando..." : "Entrar"}
+                </button>
               </div>
             </form>
             <div style={{ textAlign: "center", marginTop: 20, fontSize: 12, color: "var(--text2)" }}>
               Primeiro acesso?{" "}
-              <span
-                style={{ color: "var(--accent)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }}
-                onClick={async () => {
-                  try {
-                    const snap = await getDocs(collection(db, "usuarios"));
-                    if (snap.empty) {
-                      window.location.reload();
-                    } else {
-                      setErro("Já existe uma conta. Entre com seu e-mail e senha.");
-                    }
-                  } catch {
-                    setErro("Erro ao verificar. Tente novamente.");
-                  }
-                }}>
+              <span style={{ color: "var(--accent)", cursor: "pointer", fontWeight: 700, textDecoration: "underline" }} onClick={irParaCadastro}>
                 Criar conta de acesso
               </span>
             </div>
