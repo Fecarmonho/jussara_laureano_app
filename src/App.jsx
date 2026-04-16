@@ -2890,6 +2890,7 @@ const NAV_BASE = [
   { id: "clientes", label: "Clientes", icon: "clients", group: "Dados" },
   { id: "categorias", label: "Categorias", icon: "categories", group: "Dados" },
   { id: "relatorio", label: "Relatório PDF", icon: "pdf", group: "Dados" },
+  { id: "usuarios", label: "Usuários", icon: "clients", group: "Dados" },
 ];
 const NAV_DONO = [];
 
