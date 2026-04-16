@@ -490,6 +490,11 @@ function LoginScreen({ primeiroAcesso }) {
     if (cSenha !== cConfirmar) return setErro("As senhas não conferem.");
     setLoading(true);
     try {
+      // Verifica se já existe algum usuário no Firestore para definir o cargo
+      let snapUsuarios;
+      try { snapUsuarios = await getDocs(collection(db, "usuarios")); } catch { snapUsuarios = { empty: true }; }
+      const isFirstUser = snapUsuarios.empty;
+
       const res = await fetch(
         `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${auth.app.options.apiKey}`,
         { method: "POST", headers: { "Content-Type": "application/json" },
@@ -509,14 +514,13 @@ function LoginScreen({ primeiroAcesso }) {
           );
           const dataLogin = await resLogin.json();
           if (dataLogin.error) {
-            // Senha diferente — atualiza a senha via API usando a nova senha informada não é possível sem o idToken
-            // Solução: envia e-mail de redefinição automaticamente
+            // Senha diferente — envia e-mail de redefinição automaticamente
             await fetch(
               `https://identitytoolkit.googleapis.com/v1/accounts:sendOobCode?key=${auth.app.options.apiKey}`,
               { method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ requestType: "PASSWORD_RESET", email: cEmail.trim() }) }
             );
-            throw new Error(`Esse e-mail já tinha outra senha cadastrada. Enviamos um link de redefinição para ${cEmail.trim()} — redefina a senha, depois entre normalmente.`);
+            throw new Error(`Esse e-mail já tinha outra senha. Enviamos um link de redefinição para ${cEmail.trim()} — redefina a senha e entre normalmente.`);
           }
           localId = dataLogin.localId;
         } else {
@@ -527,7 +531,8 @@ function LoginScreen({ primeiroAcesso }) {
         localId = data.localId;
       }
 
-      const cargo = primeiroAcesso ? "dono" : "funcionario";
+      // Primeiro usuário do Firestore vira dono automaticamente, independente de primeiroAcesso
+      const cargo = (primeiroAcesso || isFirstUser) ? "dono" : "funcionario";
       await setDoc(doc(db, "usuarios", localId), {
         uid: localId,
         nome: cNome.trim(),
